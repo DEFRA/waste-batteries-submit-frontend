@@ -296,7 +296,7 @@ copy/paste friendly `sonar-issues.md`.
 To match the SonarCloud pull request summary view, pass the pull request key:
 
 ```bash
-SONAR_TOKEN=your-token SONAR_PULL_REQUEST=6 ./sonarCloudLocal.sh
+SONAR_TOKEN=your-token SONAR_PULL_REQUEST=<pull-request-number> ./sonarCloudLocal.sh
 ```
 
 ## Licence

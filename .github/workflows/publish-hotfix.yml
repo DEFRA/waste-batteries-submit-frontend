@@ -28,7 +28,7 @@ jobs:
           fetch-depth: 0 # Depth 0 is required for branch-based versioning
 
       - name: Test code and Create Test Coverage Reports
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -44,8 +44,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-#      - name: SonarCloud Scan
-#        uses: SonarSource/sonarqube-scan-action@v5.3.1 #  (or check latest version on https://github.com/marketplace/actions/official-sonarqube-scan)
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v8.2.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

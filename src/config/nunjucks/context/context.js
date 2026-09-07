@@ -1,9 +1,9 @@
-import path from 'node:path'
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
 
 import { config } from '#/config/config.js'
-import { buildNavigation } from './build-navigation.js'
 import { createLogger } from '#/server/common/helpers/logging/logger.js'
+import { buildNavigation } from './build-navigation.js'
 
 const logger = createLogger()
 const assetPath = config.get('assetPath')
@@ -13,6 +13,22 @@ const manifestPath = path.join(
 )
 
 let viteManifest
+
+// The session cookie strategy puts the whole cached session in credentials.
+// Expose only what views need — never token contents.
+function buildAuthContext(request) {
+  if (!request?.auth?.isAuthenticated) {
+    return { isAuthenticated: false }
+  }
+
+  const { displayName, organisationName, email } =
+    request.auth.credentials ?? {}
+
+  return {
+    isAuthenticated: true,
+    ...{ displayName, organisationName, email }
+  }
+}
 
 export function context(request) {
   if (config.get('isProduction') && !viteManifest) {
@@ -27,6 +43,7 @@ export function context(request) {
     assetPath: `${assetPath}/assets`,
     serviceName: config.get('serviceName'),
     serviceUrl: '/',
+    auth: buildAuthContext(request),
     breadcrumbs: [],
     navigation: buildNavigation(request),
     getAssetPath(asset) {

@@ -4,7 +4,7 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=DEFRA_waste-batteries-submit-frontend&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=DEFRA_waste-batteries-submit-frontend)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=DEFRA_waste-batteries-submit-frontend&metric=coverage)](https://sonarcloud.io/summary/new_code?id=DEFRA_waste-batteries-submit-frontend)
 
-Core delivery platform Node.js Frontend Template.
+Core delivery platform Node.js Frontend Template
 
 - [Requirements](#requirements)
   - [Node.js](#nodejs)
@@ -61,15 +61,25 @@ disable setting `SESSION_CACHE_ENGINE=false` or changing the default value in `s
 
 ## Proxy
 
-We are using forward-proxy which is set up by default. Services are automatically configured with the proxy environment variables when deployed.
+We are using forward-proxy which is set up by default. To make use of this: `import { fetch } from 'undici'` then
+because of the `setGlobalDispatcher(new ProxyAgent(proxyUrl))` calls will use the ProxyAgent Dispatcher
 
-Node.js 24 uses these variables to route outbound HTTP(S) requests through the proxy:
+If you are not using Wreck, Axios or Undici or a similar http that uses `Request`. Then you may have to provide the
+proxy dispatcher:
 
-NODE_USE_ENV_PROXY=1
-HTTPS_PROXY=...
-NO_PROXY=...
+To add the dispatcher to your own client:
 
-No additional proxy configuration is required in the service.
+```javascript
+import { ProxyAgent } from 'undici'
+
+return await fetch(url, {
+  dispatcher: new ProxyAgent({
+    uri: proxyUrl,
+    keepAliveTimeout: 10,
+    keepAliveMaxTimeout: 10
+  })
+})
+```
 
 ## Local Development
 
@@ -91,11 +101,83 @@ npm run git:hooks
 
 ### Development
 
-To run the application in `development` mode run:
+To run everything in docker, you can use:
+
+```bash
+docker compose up -d
+```
+
+To run the application in development mode without docker, you will need to have the following services running locally:
+
+The app authenticates with Defra ID and fetches its OIDC configuration at
+startup, so start the local [Defra ID stub](#defra-id-authentication) first:
+
+```bash
+docker compose up -d cdp-defra-id-stub
+```
+
+Then run the application in `development` mode:
 
 ```bash
 npm run dev
 ```
+
+### Defra ID (authentication)
+
+This service signs users in with Defra ID (see [specs/defra-id.md](specs/defra-id.md)).
+Locally it uses the [cdp-defra-id-stub](https://github.com/DEFRA/cdp-defra-id-stub),
+which `docker compose up -d cdp-defra-id-stub` starts on port `3200` along with
+its dependencies (Redis and DynamoDB via floci). All `defraId` config defaults
+point at the stub — no environment setup needed.
+
+Create a test user either through the stub's UI (you are redirected there on
+sign-in) or via its API:
+
+```bash
+curl -H "Content-Type: application/json" -X POST \
+  -d '{
+    "userId": "86a7607c-a1e7-41e5-a0b6-a41680d05a2a",
+    "email": "jo.bloggs@example.com",
+    "firstName": "Jo",
+    "lastName": "Bloggs",
+    "loa": "1",
+    "aal": "1",
+    "enrolmentCount": 1,
+    "enrolmentRequestCount": 1,
+    "relationships": [
+      {
+        "organisationName": "Acme Waste Ltd",
+        "relationshipRole": "Employee",
+        "roleName": "user",
+        "roleStatus": "3"
+      }
+    ]
+  }' \
+  http://localhost:3200/cdp-defra-id-stub/API/register
+```
+
+To test token refresh without waiting for expiry, force it:
+
+```bash
+curl -X POST http://localhost:3200/cdp-defra-id-stub/API/register/86a7607c-a1e7-41e5-a0b6-a41680d05a2a/expire
+```
+
+After auth changes, run the end-to-end journeys — they cover sign-in, redirect
+preservation, route protection, sign-out, the failure pages, token refresh,
+session storage, organisation switching and the absolute session cap, against
+the real stub:
+
+```bash
+docker compose up -d cdp-defra-id-stub
+npm run test:e2e
+```
+
+See [e2e/README.md](e2e/README.md) for what each journey covers and how the
+suite is put together.
+
+In deployed environments the identity provider is set per environment:
+the CDP-hosted stub in `dev`, real Defra ID in `test`, `perf-test` and `prod` —
+via the `DEFRA_ID_*` environment variables and CDP service secrets.
 
 ### Production
 
@@ -190,7 +272,32 @@ the [.github/example.dependabot.yml](.github/example.dependabot.yml) to `.github
 
 ### SonarCloud
 
-Instructions for setting up SonarCloud can be found in [sonar-project.properties](./sonar-project.properties).
+Code quality and coverage are analysed by
+[SonarCloud](https://sonarcloud.io/summary/new_code?id=DEFRA_waste-batteries-submit-frontend)
+on every pull request and on every publish. The quality gate appears as a check
+on the pull request; the badges at the top of this file track `main`.
+
+What is analysed is set in [sonar-project.properties](./sonar-project.properties)
+— `src/` is the production code, and the unit tests, the Playwright journeys and
+[test-helpers/](./test-helpers) are all declared as test code. Coverage comes
+from the `./coverage/lcov.info` that `npm test` writes, so the scan runs after
+the tests in each workflow.
+
+To run the same scan locally:
+
+```bash
+SONAR_TOKEN=your-token ./sonarCloudLocal.sh
+```
+
+The script runs `npm test`, uploads the analysis with `@sonar/scan`, then writes
+unresolved issues to `sonar-issues.json` and, when `python3` is available, a
+copy/paste friendly `sonar-issues.md`.
+
+To match the SonarCloud pull request summary view, pass the pull request key:
+
+```bash
+SONAR_TOKEN=your-token SONAR_PULL_REQUEST=<pull-request-number> ./sonarCloudLocal.sh
+```
 
 ## Licence
 

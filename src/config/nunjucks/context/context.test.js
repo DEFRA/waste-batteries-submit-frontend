@@ -57,6 +57,7 @@ describe('context and cache', () => {
       test('Should provide expected context', () => {
         expect(contextResult).toEqual({
           assetPath: '/public/assets',
+          auth: { isAuthenticated: false },
           breadcrumbs: [],
           getAssetPath: expect.any(Function),
           navigation: [
@@ -73,6 +74,27 @@ describe('context and cache', () => {
           ],
           serviceName: 'waste-batteries-submit-frontend',
           serviceUrl: '/'
+        })
+      })
+
+      test('Should expose email for authenticated users', () => {
+        const authenticatedContext = contextImport.context({
+          ...mockRequest,
+          auth: {
+            isAuthenticated: true,
+            credentials: {
+              displayName: 'Jo Bloggs',
+              organisationName: 'Acme Ltd',
+              email: 'jo.bloggs@example.com'
+            }
+          }
+        })
+
+        expect(authenticatedContext.auth).toEqual({
+          isAuthenticated: true,
+          displayName: 'Jo Bloggs',
+          organisationName: 'Acme Ltd',
+          email: 'jo.bloggs@example.com'
         })
       })
 
@@ -146,6 +168,7 @@ describe('context and cache', () => {
       test('Should provide expected context', () => {
         expect(contextResult).toEqual({
           assetPath: '/public/assets',
+          auth: { isAuthenticated: false },
           breadcrumbs: [],
           getAssetPath: expect.any(Function),
           navigation: [

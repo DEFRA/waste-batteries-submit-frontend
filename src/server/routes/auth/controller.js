@@ -43,7 +43,9 @@ export async function signInOidcController(request, h) {
 }
 
 export async function signOutController(request, h) {
-  if (!request.auth.isAuthenticated) return h.redirect('/')
+  if (!request.auth.isAuthenticated) {
+    return h.redirect('/')
+  }
 
   const session = request.auth.credentials
   const oidcConfig = await getOidcConfig()

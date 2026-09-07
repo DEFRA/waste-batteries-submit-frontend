@@ -1,16 +1,25 @@
 // Fixed fields from each end; the middle remainder is the organisation name,
 // which can itself contain colons
+const minimumRelationshipFields = 6
+const relationshipSuffixFields = 3
+const minimumRoleFields = 3
+const activeRoleStatus = 3
+
 export function parseRelationship(value) {
   const parts = String(value).split(':')
-  if (parts.length < 6) return null
+  if (parts.length < minimumRelationshipFields) {
+    return null
+  }
 
   const [relationshipId, organisationId] = parts
-  const [organisationLoa, relationship, relationshipLoa] = parts.slice(-3)
+  const [organisationLoa, relationship, relationshipLoa] = parts.slice(
+    -relationshipSuffixFields
+  )
 
   return {
     relationshipId,
     organisationId,
-    organisationName: parts.slice(2, -3).join(':'),
+    organisationName: parts.slice(2, -relationshipSuffixFields).join(':'),
     organisationLoa: Number(organisationLoa),
     relationship, // Citizen | Employee | Agent
     relationshipLoa: Number(relationshipLoa)
@@ -19,14 +28,16 @@ export function parseRelationship(value) {
 
 export function parseRole(value) {
   const parts = String(value).split(':')
-  if (parts.length < 3) return null
+  if (parts.length < minimumRoleFields) {
+    return null
+  }
 
   const status = Number(parts.at(-1))
   return {
     relationshipId: parts[0],
     roleName: parts.slice(1, -1).join(':'),
     status,
-    isActive: status === 3
+    isActive: status === activeRoleStatus
   }
 }
 

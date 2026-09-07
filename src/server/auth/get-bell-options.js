@@ -44,8 +44,12 @@ export function getBellOptions(oidcConfig) {
         serviceId: config.get('defraId.serviceId')
       }
       const policy = config.get('defraId.policy')
-      if (policy) params.p = policy
-      if (request.path === '/auth/organisation') params.forceReselection = true
+      if (policy) {
+        params.p = policy
+      }
+      if (request.path === '/auth/organisation') {
+        params.forceReselection = true
+      }
       return params
     }
   }

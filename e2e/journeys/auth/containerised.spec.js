@@ -48,6 +48,7 @@ function composeLogs() {
 
 test.describe('Containerised app', { tag: '@auth' }, () => {
   test.beforeEach(async () => {
+    // This optional local journey requires the compose-managed app.
     test.skip(
       !(await isContainerisedAppRunning()),
       'The compose `frontend` service is not running (docker compose up -d)'
@@ -56,6 +57,7 @@ test.describe('Containerised app', { tag: '@auth' }, () => {
 
   test('starts without failing OIDC discovery', async () => {
     const logs = composeLogs()
+    // Docker logs are unavailable when this journey is not run via compose.
     test.skip(logs === null, 'docker compose logs are unavailable')
 
     expect(logs).not.toContain('ECONNREFUSED')

@@ -21,7 +21,9 @@ async function fetchDiscoveryDocument(url) {
       return await response.json()
     } catch (error) {
       lastError = error
-      if (attempt < maxAttempts) await wait(retryDelayMs)
+      if (attempt < maxAttempts) {
+        await wait(retryDelayMs)
+      }
     }
   }
 
@@ -29,7 +31,9 @@ async function fetchDiscoveryDocument(url) {
 }
 
 export async function getOidcConfig() {
-  if (cached) return cached
+  if (cached) {
+    return cached
+  }
 
   const url = config.get('defraId.discoveryUrl')
   const doc = await fetchDiscoveryDocument(url)

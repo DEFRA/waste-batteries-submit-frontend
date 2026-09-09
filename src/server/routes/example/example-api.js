@@ -9,7 +9,7 @@ export class BackendError extends Error {
 }
 
 function backendUrl(path) {
-  return new URL(path, config.get('wasteBatteriesRegBackendUrl'))
+  return new URL(path, config.get('wasteBatteriesSubmitBackendUrl'))
 }
 
 function backendHeaders(accessToken, extraHeaders = {}) {

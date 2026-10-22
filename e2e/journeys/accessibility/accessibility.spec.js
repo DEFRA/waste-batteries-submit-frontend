@@ -16,6 +16,12 @@ const pages = [
   { name: 'Home (signed in)', path: '/', user: operatorUser },
   { name: 'About (signed in)', path: '/about', user: operatorUser },
   { name: 'Example', path: '/example', user: operatorUser },
+  // TEMPORARY: delete with src/server/routes/pom-submission
+  {
+    name: 'POM submission create single',
+    path: '/pom-submission',
+    user: operatorUser
+  },
   {
     name: 'Example (validation error)',
     path: '/example',

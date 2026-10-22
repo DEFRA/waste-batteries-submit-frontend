@@ -1,0 +1,68 @@
+{% extends 'layouts/page.njk' %}
+
+{% block content %}
+  {{ appHeading({
+    text: heading,
+    caption: "Temporary test page"
+  }) }}
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <p class="govuk-body">This page posts the JSON below to <code>POST /pom-submissions</code> and shows the API status code and body. Send the same JSON twice to see the duplicate submission error. New example replaces the request with a new member id and name, and one or two tonnage entries.</p>
+
+      {% if errorMessage %}
+        <div class="govuk-error-summary" data-module="govuk-error-summary">
+          <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+              <ul class="govuk-list govuk-error-summary__list">
+                <li><a href="#submissionJson">{{ errorMessage }}</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <form method="post" action="/pom-submission" novalidate>
+        <input type="hidden" name="crumb" value="{{ crumb }}">
+        {% if response %}
+          <input type="hidden" name="responseStatusCode" value="{{ response.statusCode }}">
+          <input type="hidden" name="responseStatusText" value="{{ response.statusText }}">
+          <input type="hidden" name="responseBody" value="{{ response.body }}">
+        {% endif %}
+
+        <div class="govuk-form-group{% if errorMessage %} govuk-form-group--error{% endif %}">
+          <label class="govuk-label govuk-label--m" for="submissionJson">Request JSON</label>
+          {% if errorMessage %}
+            <p id="submissionJson-error" class="govuk-error-message">
+              <span class="govuk-visually-hidden">Error:</span> {{ errorMessage }}
+            </p>
+          {% endif %}
+          <textarea class="govuk-textarea{% if errorMessage %} govuk-textarea--error{% endif %} pom-submission-json" id="submissionJson" name="submissionJson" rows="38" spellcheck="false"{% if errorMessage %} aria-describedby="submissionJson-error"{% endif %}>{{ submissionJson }}</textarea>
+        </div>
+
+        <div class="govuk-button-group">
+          <button class="govuk-button" data-module="govuk-button" name="intent" value="post">Send request</button>
+          <button class="govuk-button govuk-button--secondary" data-module="govuk-button" name="intent" value="new-example">New example</button>
+        </div>
+      </form>
+
+      {% if response %}
+        <h2 class="govuk-heading-m">Response</h2>
+        <p class="govuk-body">Status code <strong>{{ response.statusCode }} {{ response.statusText }}</strong></p>
+        <pre class="pom-submission-json" id="response-body">{{ response.body }}</pre>
+      {% endif %}
+    </div>
+  </div>
+
+  <style>
+    .pom-submission-json {
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 1rem;
+      line-height: 1.4;
+    }
+  </style>
+{% endblock %}

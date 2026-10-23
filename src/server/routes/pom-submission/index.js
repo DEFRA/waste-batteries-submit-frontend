@@ -2,8 +2,10 @@ import Joi from 'joi'
 
 import {
   pomSubmissionGetController,
+  pomSubmissionPage,
   pomSubmissionPostController
 } from './controller.js'
+import { exampleKinds } from './example-submission.js'
 
 // TEMPORARY manual test page for POST /pom-submissions.
 // To remove it, delete src/server/routes/pom-submission and the matching
@@ -12,6 +14,8 @@ import {
 // - src/config/nunjucks/context/build-navigation.js
 // - src/config/nunjucks/context/build-navigation.test.js
 // - e2e/journeys/accessibility/accessibility.spec.js
+// - src/client/stylesheets/partials/_index.scss
+// - src/client/javascripts/application.js
 
 const maxJsonLength = 100_000
 
@@ -31,7 +35,11 @@ export const pomSubmission = {
           options: {
             validate: {
               payload: Joi.object({
-                intent: Joi.string().valid('post', 'new-example').required(),
+                intent: Joi.string().valid('post', 'update-json').required(),
+                exampleKind: Joi.string()
+                  .valid(...exampleKinds.map((kind) => kind.value))
+                  .empty('')
+                  .default('full'),
                 submissionJson: Joi.string().max(maxJsonLength).allow(''),
                 responseStatusCode: Joi.string().max(3).allow(''),
                 responseStatusText: Joi.string().max(100).allow(''),
@@ -39,18 +47,14 @@ export const pomSubmission = {
               }).unknown(true),
               failAction(request, h) {
                 return h
-                  .view('pom-submission/index', {
-                    pageTitle: 'Error: POM submission create single',
-                    heading: 'POM submission create single',
-                    breadcrumbs: [
-                      { text: 'Home', href: '/' },
-                      { text: 'POM submission create single' }
-                    ],
-                    crumb: request.plugins.crumb,
-                    submissionJson: request.payload?.submissionJson ?? '',
-                    response: null,
-                    errorMessage: 'The request could not be read'
-                  })
+                  .view(
+                    'pom-submission/index',
+                    pomSubmissionPage(request, {
+                      exampleKind: request.payload?.exampleKind,
+                      submissionJson: request.payload?.submissionJson ?? '',
+                      errorMessage: 'The request could not be read'
+                    })
+                  )
                   .code(400)
                   .takeover()
               }

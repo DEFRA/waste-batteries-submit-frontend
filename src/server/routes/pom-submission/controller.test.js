@@ -3,7 +3,11 @@ import { vi } from 'vitest'
 import { createServer } from '#/server/server.js'
 import { statusCodes } from '#/server/common/constants/status-codes.js'
 
-import { buildExampleSubmission } from './example-submission.js'
+import {
+  buildExampleSubmission,
+  defaultExampleKind,
+  exampleKinds
+} from './example-submission.js'
 
 function extractCrumb(html) {
   return html.match(/name="crumb" value="([^"]+)"/)?.[1]
@@ -66,9 +70,15 @@ describe('#pomSubmissionController', () => {
     expect(result).toContain('POM submission create single')
     expect(result).not.toContain('Example JSON')
     expect(result).toContain('Request JSON')
-    expect(result).toContain('rows="38"')
+    expect(result).toContain('rows="33"')
+    expect(result).not.toContain('data-scroll-to')
+    expect(result).toContain('formaction="/pom-submission#request-json"')
+    expect(result).toContain('formaction="/pom-submission#send-request"')
     expect(result).toContain('Send request')
-    expect(result).toContain('New example')
+    expect(result).toContain('Update json')
+    expect(result).not.toContain('New example')
+    expect(result).toContain('value="full" selected')
+    expect(result.match(/batteryCategory/g)).toHaveLength(2)
     expect(result).toContain('BPRN-EA-2026-000123')
     expect(memberOrgId(result)).toMatch(/^[0-9a-f]{24}$/)
     expect(result).toContain('name="crumb"')
@@ -93,7 +103,8 @@ describe('#pomSubmissionController', () => {
       },
       payload: {
         crumb: extractCrumb(getResponse.result),
-        intent: 'new-example',
+        intent: 'update-json',
+        exampleKind: 'min-exclude',
         submissionJson: '{not json',
         responseStatusCode: '201',
         responseStatusText: 'Created',
@@ -106,6 +117,10 @@ describe('#pomSubmissionController', () => {
     expect(memberOrgId(result)).toMatch(/^[0-9a-f]{24}$/)
     expect(memberOrgId(result)).not.toBe(firstMemberOrgId)
     expect(result).not.toContain(firstMemberOrgId)
+    expect(result).toContain('value="min-exclude" selected')
+    expect(result).toContain('data-scroll-to="request-json"')
+    expect(result).not.toContain('subCategory')
+    expect(result.match(/batteryCategory/g)).toHaveLength(1)
     expect(result).toContain('201 Created')
     expect(result).toContain('kept-response')
     expect(result).toContain('name="responseStatusCode" value="201"')
@@ -149,6 +164,7 @@ describe('#pomSubmissionController', () => {
 
     expect(statusCode).toBe(statusCodes.ok)
     expect(result).toContain('201 Created')
+    expect(result).toContain('data-scroll-to="send-request"')
     expect(result).toContain('674a1b2c3d4e5f6789012347')
     expect(result).toContain('Submitted')
     expect(fetchMock).toHaveBeenCalledWith(
@@ -237,21 +253,122 @@ describe('#pomSubmissionController', () => {
   })
 })
 
+function parsedExample(kind) {
+  return JSON.parse(buildExampleSubmission(kind))
+}
+
 describe('#buildExampleSubmission', () => {
-  test('Should use one or two different tonnage entries', () => {
-    const counts = new Set()
+  test('Should default to a full submission with two tonnage entries', () => {
+    const body = parsedExample()
 
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      const body = JSON.parse(buildExampleSubmission())
-      counts.add(body.tonnageEntries.length)
+    expect(defaultExampleKind).toBe('full')
+    expect(body.tonnageEntries).toHaveLength(2)
+    expect(body.tonnageEntries[0].classification.subCategory).toEqual(
+      expect.any(String)
+    )
+    expect(body.tonnageEntries[0].classification).not.toEqual(
+      body.tonnageEntries[1].classification
+    )
+  })
 
-      if (body.tonnageEntries.length === 2) {
-        expect(JSON.stringify(body.tonnageEntries[0].classification)).not.toBe(
-          JSON.stringify(body.tonnageEntries[1].classification)
-        )
-      }
-    }
+  test('Should build a minimum submission without optional classification fields', () => {
+    const classification =
+      parsedExample('min-exclude').tonnageEntries[0].classification
 
-    expect(counts).toEqual(new Set([1, 2]))
+    expect(parsedExample('min-exclude').tonnageEntries).toHaveLength(1)
+    expect(Object.keys(classification)).toEqual([
+      'batteryCategory',
+      'chemistry'
+    ])
+  })
+
+  test('Should set optional classification fields to null, blank or whitespace', () => {
+    expect(
+      parsedExample('min-null').tonnageEntries[0].classification
+    ).toMatchObject({
+      subCategory: null,
+      cellType: null,
+      equipmentState: null
+    })
+    expect(
+      parsedExample('min-blank').tonnageEntries[0].classification
+    ).toMatchObject({
+      subCategory: '',
+      cellType: '',
+      equipmentState: ''
+    })
+
+    const whitespace =
+      parsedExample('min-whitespace').tonnageEntries[0].classification
+    expect(whitespace.subCategory.trim()).toBe('')
+    expect(whitespace.cellType.trim()).toBe('')
+    expect(whitespace.equipmentState.trim()).toBe('')
+    expect(whitespace.subCategory.length).toBeGreaterThan(0)
+  })
+
+  test('Should pad every string when the example is trim', () => {
+    const body = parsedExample('trim')
+
+    expect(body.tonnageEntries).toHaveLength(2)
+    expect(body.schemeOrgId).toMatch(/^ {2}\S.*\S {2}$/)
+    expect(body.compliancePeriodYear).toBe(2026)
+    expect(body.tonnageEntries[0].tonnes).toMatch(/^ {2}\d+\.\d{3} {2}$/)
+    expect(body.tonnageEntries[0].classification.subCategory).toMatch(
+      /^ {2}\S.*\S {2}$/
+    )
+  })
+
+  test('Should build each invalid example', () => {
+    expect(parsedExample('invalid-missing')).toEqual({})
+
+    const nulled = parsedExample('invalid-null')
+    expect(nulled.schemeOrgId).toBeNull()
+    expect(nulled.compliancePeriodYear).toBeNull()
+    expect(nulled.tonnageEntries[0].classification).toBeNull()
+    expect(nulled.tonnageEntries[0].tonnes).toBeNull()
+
+    const blank = parsedExample('invalid-blank')
+    expect(blank.memberName).toBe('')
+    expect(blank.compliancePeriodYear).toBe('')
+    expect(blank.tonnageEntries[0].classification.chemistry).toBe('')
+    expect(blank.tonnageEntries[0].tonnes).toBe('')
+
+    const format = parsedExample('invalid-format')
+    expect(format.schemeOrgId).toBe('not-an-object-id')
+    expect(format.memberOrgId).toBe('not-an-object-id')
+    expect(format.memberBprn).toBe('not-a-bprn')
+    expect(format.compliancePeriodYear).toBe(999)
+    expect(format.tonnageEntries[0].tonnes.startsWith('-')).toBe(true)
+
+    const duplicate = parsedExample('invalid-duplicate')
+    expect(duplicate.tonnageEntries[0].classification).toEqual(
+      duplicate.tonnageEntries[1].classification
+    )
+
+    const mismatch = parsedExample('invalid-bprn-year')
+    expect(mismatch.memberBprn).toBe('BPRN-EA-2025-000123')
+    expect(mismatch.compliancePeriodYear).toBe(2026)
+
+    const unknown = parsedExample('invalid-unknown')
+    expect(unknown.regulatorNote).toBe('ignore me')
+    expect(unknown.tonnageEntries).toHaveLength(1)
+  })
+
+  test('Should list the examples in dropdown order', () => {
+    expect(exampleKinds.map((kind) => kind.text)).toEqual([
+      'Full submission',
+      'Min submission - exclude optional fields',
+      'Min submission - NULL optional fields',
+      'Min submission - blank optional fields',
+      'Min submission - white space optional fields',
+      'Trim',
+      'Invalid - missing req fields',
+      'Invalid - NULL req fields',
+      'Invalid - blank req fields',
+      'Invalid - wrong field format',
+      'Invalid - duplicate classification',
+      'Invalid - BPRN year mismatch',
+      'Invalid - unknown property'
+    ])
   })
 })

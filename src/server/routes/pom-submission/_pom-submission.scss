@@ -1,0 +1,20 @@
+@use "govuk-frontend" as *;
+
+// TEMPORARY. Delete this file with src/server/routes/pom-submission.
+
+.pom-submission-examples {
+  gap: govuk-spacing(3);
+}
+
+.pom-submission-json {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.pom-submission-scroll-target {
+  scroll-margin-top: govuk-spacing(4);
+}

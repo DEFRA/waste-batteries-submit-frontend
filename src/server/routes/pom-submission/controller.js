@@ -1,20 +1,35 @@
 import { statusCodes } from '#/server/common/constants/status-codes.js'
 
-import { buildExampleSubmission } from './example-submission.js'
+import {
+  buildExampleSubmission,
+  defaultExampleKind,
+  exampleKinds
+} from './example-submission.js'
 import { createPomSubmission } from './pom-submission-api.js'
 
 const pageTitle = 'POM submission create single'
 const pomSubmissionView = 'pom-submission/index'
 
-function viewContext(request, values = {}) {
+function selectedKind(value) {
+  return exampleKinds.some((kind) => kind.value === value)
+    ? value
+    : defaultExampleKind
+}
+
+export function pomSubmissionPage(request, values = {}) {
+  const exampleKind = selectedKind(values.exampleKind)
+
   return {
     pageTitle: values.errorMessage ? `Error: ${pageTitle}` : pageTitle,
     heading: pageTitle,
     breadcrumbs: [{ text: 'Home', href: '/' }, { text: pageTitle }],
     crumb: request.plugins.crumb,
-    submissionJson: '',
-    response: null,
-    ...values
+    exampleKinds,
+    exampleKind,
+    submissionJson: values.submissionJson ?? '',
+    response: values.response ?? null,
+    errorMessage: values.errorMessage,
+    scrollTo: values.scrollTo ?? null
   }
 }
 
@@ -47,8 +62,9 @@ export const pomSubmissionGetController = {
   handler(request, h) {
     return h.view(
       pomSubmissionView,
-      viewContext(request, {
-        submissionJson: buildExampleSubmission()
+      pomSubmissionPage(request, {
+        exampleKind: defaultExampleKind,
+        submissionJson: buildExampleSubmission(defaultExampleKind)
       })
     )
   }
@@ -56,12 +72,18 @@ export const pomSubmissionGetController = {
 
 export const pomSubmissionPostController = {
   async handler(request, h) {
-    if (request.payload.intent === 'new-example') {
+    const exampleKind = selectedKind(request.payload.exampleKind)
+    const scrollTo =
+      request.payload.intent === 'update-json' ? 'request-json' : 'send-request'
+
+    if (request.payload.intent === 'update-json') {
       return h.view(
         pomSubmissionView,
-        viewContext(request, {
-          submissionJson: buildExampleSubmission(),
-          response: postedResponse(request.payload)
+        pomSubmissionPage(request, {
+          exampleKind,
+          submissionJson: buildExampleSubmission(exampleKind),
+          response: postedResponse(request.payload),
+          scrollTo
         })
       )
     }
@@ -72,9 +94,11 @@ export const pomSubmissionPostController = {
       return h
         .view(
           pomSubmissionView,
-          viewContext(request, {
+          pomSubmissionPage(request, {
+            exampleKind,
             submissionJson,
-            errorMessage: 'Enter the JSON to post'
+            errorMessage: 'Enter the JSON to post',
+            scrollTo
           })
         )
         .code(statusCodes.badRequest)
@@ -93,9 +117,11 @@ export const pomSubmissionPostController = {
       return h
         .view(
           pomSubmissionView,
-          viewContext(request, {
+          pomSubmissionPage(request, {
+            exampleKind,
             submissionJson,
-            errorMessage: 'Enter valid JSON'
+            errorMessage: 'Enter valid JSON',
+            scrollTo
           })
         )
         .code(statusCodes.badRequest)
@@ -109,8 +135,10 @@ export const pomSubmissionPostController = {
 
       return h.view(
         pomSubmissionView,
-        viewContext(request, {
+        pomSubmissionPage(request, {
+          exampleKind,
           submissionJson,
+          scrollTo,
           response: {
             statusCode: response.statusCode,
             statusText: response.statusText,
@@ -124,9 +152,11 @@ export const pomSubmissionPostController = {
       return h
         .view(
           pomSubmissionView,
-          viewContext(request, {
+          pomSubmissionPage(request, {
+            exampleKind,
             submissionJson,
-            errorMessage: 'There was a problem calling the API'
+            errorMessage: 'There was a problem calling the API',
+            scrollTo
           })
         )
         .code(statusCodes.internalServerError)

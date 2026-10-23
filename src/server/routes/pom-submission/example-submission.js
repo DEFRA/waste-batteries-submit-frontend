@@ -5,6 +5,10 @@ import { randomBytes, randomInt } from 'node:crypto'
 // where that still fits the selected case.
 
 const schemeOrgId = '674a1b2c3d4e5f6789012345'
+const tonnesDecimalPlaces = 3
+const memberOrgIdBytes = 12
+const memberNameSuffixMin = 1000
+const memberNameSuffixMax = 9999
 
 export const defaultExampleKind = 'full'
 
@@ -68,7 +72,7 @@ function padded(value) {
 }
 
 function tonnes() {
-  return `${randomInt(1, 100)}.${String(randomInt(0, 1000)).padStart(3, '0')}`
+  return `${randomInt(1, 100)}.${String(randomInt(0, 1000)).padStart(tonnesDecimalPlaces, '0')}`
 }
 
 function negativeTonnes() {
@@ -76,11 +80,11 @@ function negativeTonnes() {
 }
 
 function member() {
-  const memberName = `${memberNames[randomInt(memberNames.length)]} ${randomInt(1000, 9999)}`
+  const memberName = `${memberNames[randomInt(memberNames.length)]} ${randomInt(memberNameSuffixMin, memberNameSuffixMax)}`
 
   return {
     schemeOrgId,
-    memberOrgId: randomBytes(12).toString('hex'),
+    memberOrgId: randomBytes(memberOrgIdBytes).toString('hex'),
     memberName,
     memberBprn: 'BPRN-EA-2026-000123',
     schemeMembershipRef: 'SCH-00417',

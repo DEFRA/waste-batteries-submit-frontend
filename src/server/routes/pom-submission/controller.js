@@ -70,96 +70,115 @@ export const pomSubmissionGetController = {
   }
 }
 
+function scrollTarget(intent) {
+  return intent === 'update-json' ? 'request-json' : 'send-request'
+}
+
+function isJsonObject(submissionJson) {
+  try {
+    const parsed = JSON.parse(submissionJson)
+    return (
+      parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+    )
+  } catch {
+    return false
+  }
+}
+
+function viewPage(h, request, values, statusCode) {
+  const response = h.view(pomSubmissionView, pomSubmissionPage(request, values))
+
+  if (statusCode === undefined) {
+    return response
+  }
+
+  return response.code(statusCode)
+}
+
+async function postSubmission(request, h, page) {
+  const { exampleKind, submissionJson, scrollTo } = page
+
+  try {
+    const response = await createPomSubmission({
+      body: submissionJson,
+      accessToken: request.auth.credentials.accessToken
+    })
+
+    return viewPage(h, request, {
+      exampleKind,
+      submissionJson,
+      scrollTo,
+      response: {
+        statusCode: response.statusCode,
+        statusText: response.statusText,
+        body: formattedBody(response.body)
+      }
+    })
+  } catch (error) {
+    request.logger.error(error, 'Could not post the POM submission')
+
+    return viewPage(
+      h,
+      request,
+      {
+        exampleKind,
+        submissionJson,
+        errorMessage: 'There was a problem calling the API',
+        scrollTo
+      },
+      statusCodes.internalServerError
+    )
+  }
+}
+
 export const pomSubmissionPostController = {
   async handler(request, h) {
     const exampleKind = selectedKind(request.payload.exampleKind)
-    const scrollTo =
-      request.payload.intent === 'update-json' ? 'request-json' : 'send-request'
+    const scrollTo = scrollTarget(request.payload.intent)
 
     if (request.payload.intent === 'update-json') {
-      return h.view(
-        pomSubmissionView,
-        pomSubmissionPage(request, {
-          exampleKind,
-          submissionJson: buildExampleSubmission(exampleKind),
-          response: postedResponse(request.payload),
-          scrollTo
-        })
-      )
+      return viewPage(h, request, {
+        exampleKind,
+        submissionJson: buildExampleSubmission(exampleKind),
+        response: postedResponse(request.payload),
+        scrollTo
+      })
     }
 
     const submissionJson = request.payload.submissionJson ?? ''
 
     if (submissionJson.trim() === '') {
-      return h
-        .view(
-          pomSubmissionView,
-          pomSubmissionPage(request, {
-            exampleKind,
-            submissionJson,
-            errorMessage: 'Enter the JSON to post',
-            scrollTo
-          })
-        )
-        .code(statusCodes.badRequest)
-    }
-
-    try {
-      const parsed = JSON.parse(submissionJson)
-      if (
-        parsed === null ||
-        typeof parsed !== 'object' ||
-        Array.isArray(parsed)
-      ) {
-        throw new SyntaxError('JSON must be an object')
-      }
-    } catch {
-      return h
-        .view(
-          pomSubmissionView,
-          pomSubmissionPage(request, {
-            exampleKind,
-            submissionJson,
-            errorMessage: 'Enter valid JSON',
-            scrollTo
-          })
-        )
-        .code(statusCodes.badRequest)
-    }
-
-    try {
-      const response = await createPomSubmission({
-        body: submissionJson,
-        accessToken: request.auth.credentials.accessToken
-      })
-
-      return h.view(
-        pomSubmissionView,
-        pomSubmissionPage(request, {
+      return viewPage(
+        h,
+        request,
+        {
           exampleKind,
           submissionJson,
-          scrollTo,
-          response: {
-            statusCode: response.statusCode,
-            statusText: response.statusText,
-            body: formattedBody(response.body)
-          }
-        })
+          errorMessage: 'Enter the JSON to post',
+          scrollTo
+        },
+        statusCodes.badRequest
       )
-    } catch (error) {
-      request.logger.error(error, 'Could not post the POM submission')
-
-      return h
-        .view(
-          pomSubmissionView,
-          pomSubmissionPage(request, {
-            exampleKind,
-            submissionJson,
-            errorMessage: 'There was a problem calling the API',
-            scrollTo
-          })
-        )
-        .code(statusCodes.internalServerError)
     }
+
+    if (!isJsonObject(submissionJson)) {
+      return viewPage(
+        h,
+        request,
+        {
+          exampleKind,
+          submissionJson,
+          errorMessage: 'Enter valid JSON',
+          scrollTo
+        },
+        statusCodes.badRequest
+      )
+    }
+
+    return postSubmission(request, h, {
+      exampleKind,
+      submissionJson,
+      scrollTo
+    })
   }
 }

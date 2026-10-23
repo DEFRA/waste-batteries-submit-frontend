@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 
 import { createServer } from '#/server/server.js'
 import { statusCodes } from '#/server/common/constants/status-codes.js'
+import { pomSubmissionPage } from './controller.js'
 
 import {
   buildExampleSubmission,
@@ -34,6 +35,27 @@ const signedIn = {
 describe('#pomSubmissionController', () => {
   const originalFetch = globalThis.fetch
   let server
+
+  async function signedInPost(payload) {
+    const getResponse = await server.inject({
+      method: 'GET',
+      url: '/pom-submission',
+      auth: signedIn
+    })
+
+    return server.inject({
+      method: 'POST',
+      url: '/pom-submission',
+      headers: {
+        cookie: cookieHeader(getResponse.headers['set-cookie'])
+      },
+      payload: {
+        ...payload,
+        crumb: extractCrumb(getResponse.result)
+      },
+      auth: signedIn
+    })
+  }
 
   beforeAll(async () => {
     server = await createServer()
@@ -251,6 +273,146 @@ describe('#pomSubmissionController', () => {
     expect(result).toContain('[1, 2]')
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  test('Should reject JSON that cannot be parsed before calling the API', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'post',
+      submissionJson: '{not json'
+    })
+
+    expect(statusCode).toBe(statusCodes.badRequest)
+    expect(result).toContain('Enter valid JSON')
+    expect(result).toContain('{not json')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('Should say the request could not be read when the payload is invalid', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const withJson = await signedInPost({
+      exampleKind: 'full',
+      submissionJson: '{"kept":true}'
+    })
+
+    expect(withJson.statusCode).toBe(statusCodes.badRequest)
+    expect(withJson.result).toContain('The request could not be read')
+    expect(withJson.result).toMatch(/\{(?:&quot;|")kept(?:&quot;|"):true\}/)
+
+    const withoutJson = await signedInPost({
+      intent: 'nope'
+    })
+
+    expect(withoutJson.statusCode).toBe(statusCodes.badRequest)
+    expect(withoutJson.result).toContain('The request could not be read')
+    expect(withoutJson.result).toContain('name="submissionJson"')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('Should ask for JSON when the submission is empty', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'post'
+    })
+
+    expect(statusCode).toBe(statusCodes.badRequest)
+    expect(result).toContain('Enter the JSON to post')
+    expect(result).toContain('data-scroll-to="send-request"')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('Should drop a stored response when the status code is blank', async () => {
+    const { result, statusCode } = await signedInPost({
+      intent: 'update-json',
+      exampleKind: 'full',
+      responseStatusCode: '',
+      responseStatusText: 'Created',
+      responseBody: 'should-not-keep'
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).not.toContain('should-not-keep')
+    expect(result).not.toContain('name="responseStatusCode"')
+    expect(result).toContain('data-scroll-to="request-json"')
+  })
+
+  test('Should keep a response when the status text and body are missing', async () => {
+    const { result, statusCode } = await signedInPost({
+      intent: 'update-json',
+      exampleKind: 'full',
+      responseStatusCode: '201'
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('201')
+    expect(result).toContain('name="responseStatusText" value=""')
+    expect(result).toContain('name="responseBody" value=""')
+  })
+
+  test('Should show an empty API body', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(null, { status: 204, statusText: 'No Content' })
+      )
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'post',
+      submissionJson: '{"schemeOrgId":"674a1b2c3d4e5f6789012345"}'
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('204 No Content')
+    expect(result).toContain('(empty body)')
+  })
+
+  test('Should show a non-JSON API body unchanged', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response('plain text', {
+        status: 200,
+        statusText: 'OK'
+      })
+    )
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'post',
+      submissionJson: '{"schemeOrgId":"674a1b2c3d4e5f6789012345"}'
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('200 OK')
+    expect(result).toContain('plain text')
+  })
+
+  test('Should show a problem when the API call fails', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down'))
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'post',
+      submissionJson: '{"schemeOrgId":"674a1b2c3d4e5f6789012345"}'
+    })
+
+    expect(statusCode).toBe(statusCodes.internalServerError)
+    expect(result).toContain('There was a problem calling the API')
+    expect(result).toContain('Error: POM submission create single')
+  })
+
+  test('Should fall back when the example kind or JSON is missing', () => {
+    const page = pomSubmissionPage(
+      { plugins: { crumb: 'crumb-token' } },
+      { exampleKind: 'not-a-kind' }
+    )
+
+    expect(page.exampleKind).toBe(defaultExampleKind)
+    expect(page.submissionJson).toBe('')
+    expect(page.crumb).toBe('crumb-token')
+    expect(page.pageTitle).toBe('POM submission create single')
+  })
 })
 
 function parsedExample(kind) {
@@ -258,6 +420,13 @@ function parsedExample(kind) {
 }
 
 describe('#buildExampleSubmission', () => {
+  test('Should fall back to the full example for an unknown kind', () => {
+    const body = parsedExample('not-a-kind')
+
+    expect(body.tonnageEntries).toHaveLength(2)
+    expect(body.compliancePeriodYear).toBe(2026)
+  })
+
   test('Should default to a full submission with two tonnage entries', () => {
     const body = parsedExample()
 

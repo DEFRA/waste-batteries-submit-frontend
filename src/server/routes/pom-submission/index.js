@@ -1,5 +1,7 @@
 import Joi from 'joi'
 
+import { statusCodes } from '#/server/common/constants/status-codes.js'
+
 import {
   pomSubmissionGetController,
   pomSubmissionPage,
@@ -18,6 +20,7 @@ import { exampleKinds } from './example-submission.js'
 // - src/client/javascripts/application.js
 
 const maxJsonLength = 100_000
+const maxStatusCodeLength = 3
 
 export const pomSubmission = {
   plugin: {
@@ -41,7 +44,9 @@ export const pomSubmission = {
                   .empty('')
                   .default('full'),
                 submissionJson: Joi.string().max(maxJsonLength).allow(''),
-                responseStatusCode: Joi.string().max(3).allow(''),
+                responseStatusCode: Joi.string()
+                  .max(maxStatusCodeLength)
+                  .allow(''),
                 responseStatusText: Joi.string().max(100).allow(''),
                 responseBody: Joi.string().max(maxJsonLength).allow('')
               }).unknown(true),
@@ -55,7 +60,7 @@ export const pomSubmission = {
                       errorMessage: 'The request could not be read'
                     })
                   )
-                  .code(400)
+                  .code(statusCodes.badRequest)
                   .takeover()
               }
             }

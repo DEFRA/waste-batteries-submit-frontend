@@ -1,4 +1,9 @@
+import { promisify } from 'node:util'
+import { gunzip as gunzipCallback } from 'node:zlib'
+
 import { config } from '#/config/config.js'
+
+const gunzip = promisify(gunzipCallback)
 
 function backendUrl(path) {
   return new URL(path, config.get('wasteBatteriesSubmitBackendUrl'))
@@ -11,12 +16,39 @@ function jsonHeaders(accessToken) {
   }
 }
 
+// Ask the API to gzip the GET body. Node fetch inflates it before this client reads it.
+function gzipHeaders(accessToken) {
+  return {
+    ...jsonHeaders(accessToken),
+    'accept-encoding': 'gzip'
+  }
+}
+
 async function readResponse(response) {
   return {
     statusCode: response.status,
     statusText: response.statusText,
-    body: await response.text()
+    body: await readBody(response)
   }
+}
+
+async function readBody(response) {
+  const encoding = response.headers.get('content-encoding')
+  if (!encoding?.toLowerCase().includes('gzip')) {
+    return response.text()
+  }
+
+  const bytes = Buffer.from(await response.arrayBuffer())
+  if (bytes.length === 0) {
+    return ''
+  }
+
+  // Fetch can inflate the body and still report gzip. A raw gzip body starts with 1f 8b.
+  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
+    return bytes.toString('utf8')
+  }
+
+  return (await gunzip(bytes)).toString('utf8')
 }
 
 function appendQueryValue(params, key, value) {
@@ -63,7 +95,7 @@ export async function getPomSubmission({ id, accessToken }) {
     backendUrl(`/pom-submissions/${encodeURIComponent(id)}`),
     {
       method: 'GET',
-      headers: jsonHeaders(accessToken)
+      headers: gzipHeaders(accessToken)
     }
   )
 
@@ -73,7 +105,7 @@ export async function getPomSubmission({ id, accessToken }) {
 export async function listPomSubmissions({ filters, accessToken }) {
   const response = await fetch(backendUrl(listPath(filters)), {
     method: 'GET',
-    headers: jsonHeaders(accessToken)
+    headers: gzipHeaders(accessToken)
   })
 
   return readResponse(response)

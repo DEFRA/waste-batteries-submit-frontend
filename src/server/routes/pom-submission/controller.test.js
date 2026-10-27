@@ -1,3 +1,5 @@
+import { gzipSync } from 'node:zlib'
+
 import { vi } from 'vitest'
 
 import { createServer } from '#/server/server.js'
@@ -438,10 +440,63 @@ describe('#pomSubmissionController', () => {
         method: 'GET',
         headers: {
           accept: 'application/json',
+          'accept-encoding': 'gzip',
           authorization: 'Bearer access-token'
         }
       }
     )
+  })
+
+  test('Should inflate a gzip response when reading one submission', async () => {
+    const body = JSON.stringify({
+      id: '674a1b2c3d4e5f6789012346',
+      status: 'Submitted'
+    })
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(gzipSync(body), {
+        status: 200,
+        statusText: 'OK',
+        headers: { 'content-encoding': 'gzip' }
+      })
+    )
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'get-by-id',
+      submissionJson: JSON.stringify({
+        id: '674a1b2c3d4e5f6789012346'
+      })
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('Submitted')
+    expect(result).not.toContain('content-encoding')
+  })
+
+  test('Should read JSON when fetch has already inflated the gzip body', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: '674a1b2c3d4e5f6789012346',
+          status: 'Submitted'
+        }),
+        {
+          status: 200,
+          statusText: 'OK',
+          headers: { 'content-encoding': 'gzip' }
+        }
+      )
+    )
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'get-by-id',
+      submissionJson: JSON.stringify({
+        id: '674a1b2c3d4e5f6789012346'
+      })
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('Submitted')
   })
 
   test('Should ask for an id before reading one submission', async () => {
@@ -515,6 +570,7 @@ describe('#pomSubmissionController', () => {
       method: 'GET',
       headers: {
         accept: 'application/json',
+        'accept-encoding': 'gzip',
         authorization: 'Bearer access-token'
       }
     })

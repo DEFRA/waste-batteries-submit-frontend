@@ -440,7 +440,6 @@ describe('#pomSubmissionController', () => {
         method: 'GET',
         headers: {
           accept: 'application/json',
-          'accept-encoding': 'gzip',
           authorization: 'Bearer access-token'
         }
       }

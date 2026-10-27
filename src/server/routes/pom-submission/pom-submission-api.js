@@ -16,7 +16,7 @@ function jsonHeaders(accessToken) {
   }
 }
 
-// Ask the API to gzip the GET body. Node fetch inflates it before this client reads it.
+// Ask the API to gzip the list body. The single submission read stays plain JSON. Node fetch inflates a gzip body before this client reads it.
 function gzipHeaders(accessToken) {
   return {
     ...jsonHeaders(accessToken),
@@ -95,7 +95,7 @@ export async function getPomSubmission({ id, accessToken }) {
     backendUrl(`/pom-submissions/${encodeURIComponent(id)}`),
     {
       method: 'GET',
-      headers: gzipHeaders(accessToken)
+      headers: jsonHeaders(accessToken)
     }
   )
 

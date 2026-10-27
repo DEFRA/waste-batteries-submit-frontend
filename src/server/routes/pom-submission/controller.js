@@ -5,7 +5,11 @@ import {
   defaultExampleKind,
   exampleKinds
 } from './example-submission.js'
-import { createPomSubmission } from './pom-submission-api.js'
+import {
+  createPomSubmission,
+  getPomSubmission,
+  listPomSubmissions
+} from './pom-submission-api.js'
 
 const pageTitle = 'POM submission test page'
 const heading = 'POM submission saving'
@@ -16,6 +20,22 @@ function selectedKind(value) {
   return exampleKinds.some((kind) => kind.value === value)
     ? value
     : defaultExampleKind
+}
+
+function scrollTarget(intent) {
+  if (intent === 'update-json') {
+    return 'request-json'
+  }
+
+  if (intent === 'get-by-id') {
+    return 'get-by-id'
+  }
+
+  if (intent === 'get-multiples') {
+    return 'get-multiples'
+  }
+
+  return 'create-single'
 }
 
 export function pomSubmissionPage(request, values = {}) {
@@ -73,19 +93,25 @@ export const pomSubmissionGetController = {
   }
 }
 
-function scrollTarget(intent) {
-  return intent === 'update-json' ? 'request-json' : 'send-request'
-}
-
-function isJsonObject(submissionJson) {
+function jsonObject(submissionJson) {
   try {
     const parsed = JSON.parse(submissionJson)
-    return (
-      parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-    )
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed)
+    ) {
+      return parsed
+    }
   } catch {
-    return false
+    return null
   }
+
+  return null
+}
+
+function submissionId(body) {
+  return typeof body.id === 'string' ? body.id.trim() : ''
 }
 
 function viewPage(h, request, values, statusCode) {
@@ -98,14 +124,11 @@ function viewPage(h, request, values, statusCode) {
   return response.code(statusCode)
 }
 
-async function postSubmission(request, h, page) {
+async function callApi(request, h, page, call, logMessage) {
   const { exampleKind, submissionJson, scrollTo } = page
 
   try {
-    const response = await createPomSubmission({
-      body: submissionJson,
-      accessToken: request.auth.credentials.accessToken
-    })
+    const response = await call()
 
     return viewPage(h, request, {
       exampleKind,
@@ -118,7 +141,7 @@ async function postSubmission(request, h, page) {
       }
     })
   } catch (error) {
-    request.logger.error(error, 'Could not post the POM submission')
+    request.logger.error(error, logMessage)
 
     return viewPage(
       h,
@@ -132,6 +155,52 @@ async function postSubmission(request, h, page) {
       statusCodes.internalServerError
     )
   }
+}
+
+function accessToken(request) {
+  return request.auth.credentials.accessToken
+}
+
+function postSubmission(request, h, page) {
+  return callApi(
+    request,
+    h,
+    page,
+    () =>
+      createPomSubmission({
+        body: page.submissionJson,
+        accessToken: accessToken(request)
+      }),
+    'Could not post the POM submission'
+  )
+}
+
+function readSubmission(request, h, page, id) {
+  return callApi(
+    request,
+    h,
+    page,
+    () =>
+      getPomSubmission({
+        id,
+        accessToken: accessToken(request)
+      }),
+    'Could not get the POM submission'
+  )
+}
+
+function readSubmissions(request, h, page, filters) {
+  return callApi(
+    request,
+    h,
+    page,
+    () =>
+      listPomSubmissions({
+        filters,
+        accessToken: accessToken(request)
+      }),
+    'Could not list the POM submissions'
+  )
 }
 
 export const pomSubmissionPostController = {
@@ -149,39 +218,59 @@ export const pomSubmissionPostController = {
     }
 
     const submissionJson = request.payload.submissionJson ?? ''
+    const page = { exampleKind, submissionJson, scrollTo }
 
     if (submissionJson.trim() === '') {
       return viewPage(
         h,
         request,
         {
-          exampleKind,
-          submissionJson,
-          errorMessage: 'Enter the JSON to post',
-          scrollTo
+          ...page,
+          errorMessage:
+            request.payload.intent === 'post'
+              ? 'Enter the JSON to post'
+              : 'Enter the JSON to send'
         },
         statusCodes.badRequest
       )
     }
 
-    if (!isJsonObject(submissionJson)) {
+    const body = jsonObject(submissionJson)
+
+    if (!body) {
       return viewPage(
         h,
         request,
         {
-          exampleKind,
-          submissionJson,
-          errorMessage: 'Enter valid JSON',
-          scrollTo
+          ...page,
+          errorMessage: 'Enter valid JSON'
         },
         statusCodes.badRequest
       )
     }
 
-    return postSubmission(request, h, {
-      exampleKind,
-      submissionJson,
-      scrollTo
-    })
+    if (request.payload.intent === 'get-by-id') {
+      const id = submissionId(body)
+
+      if (id === '') {
+        return viewPage(
+          h,
+          request,
+          {
+            ...page,
+            errorMessage: 'Enter a JSON object with an id'
+          },
+          statusCodes.badRequest
+        )
+      }
+
+      return readSubmission(request, h, page, id)
+    }
+
+    if (request.payload.intent === 'get-multiples') {
+      return readSubmissions(request, h, page, body)
+    }
+
+    return postSubmission(request, h, page)
   }
 }

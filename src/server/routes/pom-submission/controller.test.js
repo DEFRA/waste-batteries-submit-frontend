@@ -100,8 +100,16 @@ describe('#pomSubmissionController', () => {
     expect(result).toContain('rows="33"')
     expect(result).not.toContain('data-scroll-to')
     expect(result).toContain('formaction="/pom-submission#request-json"')
-    expect(result).toContain('formaction="/pom-submission#send-request"')
-    expect(result).toContain('Send request')
+    expect(result).toContain('formaction="/pom-submission#create-single"')
+    expect(result).toContain('formaction="/pom-submission#get-by-id"')
+    expect(result).toContain('formaction="/pom-submission#get-multiples"')
+    expect(result).toContain('Create single')
+    expect(result).toContain('Get by id')
+    expect(result).toContain('Get multiples')
+    expect(result).toContain('<option disabled>....................</option>')
+    expect(result).toContain('Get by scheme id with years and quarters')
+    expect(result).toContain('Get by member id with years and paginated')
+    expect(result).not.toContain('Send request')
     expect(result).toContain('Update json')
     expect(result).not.toContain('New example')
     expect(result).toContain('value="full" selected')
@@ -196,7 +204,7 @@ describe('#pomSubmissionController', () => {
 
     expect(statusCode).toBe(statusCodes.ok)
     expect(result).toContain('201 Created')
-    expect(result).toContain('data-scroll-to="send-request"')
+    expect(result).toContain('data-scroll-to="create-single"')
     expect(result).toContain('674a1b2c3d4e5f6789012347')
     expect(result).toContain('Submitted')
     expect(fetchMock).toHaveBeenCalledWith(
@@ -332,7 +340,7 @@ describe('#pomSubmissionController', () => {
 
     expect(statusCode).toBe(statusCodes.badRequest)
     expect(result).toContain('Enter the JSON to post')
-    expect(result).toContain('data-scroll-to="send-request"')
+    expect(result).toContain('data-scroll-to="create-single"')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -397,6 +405,146 @@ describe('#pomSubmissionController', () => {
     expect(statusCode).toBe(statusCodes.ok)
     expect(result).toContain('200 OK')
     expect(result).toContain('plain text')
+  })
+
+  test('Should read one submission by id', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(
+          { id: '674a1b2c3d4e5f6789012346', status: 'Submitted' },
+          { status: 200, statusText: 'OK' }
+        )
+      )
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'get-by-id',
+      submissionJson: JSON.stringify({
+        id: '  674a1b2c3d4e5f6789012346  '
+      })
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('200 OK')
+    expect(result).toContain('data-scroll-to="get-by-id"')
+    expect(result).toContain('Submitted')
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL(
+        '/pom-submissions/674a1b2c3d4e5f6789012346',
+        'http://localhost:3001'
+      ),
+      {
+        method: 'GET',
+        headers: {
+          accept: 'application/json',
+          authorization: 'Bearer access-token'
+        }
+      }
+    )
+  })
+
+  test('Should ask for an id before reading one submission', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'get-by-id',
+      submissionJson: '{"schemeOrgId":"674a1b2c3d4e5f6789012345"}'
+    })
+
+    expect(statusCode).toBe(statusCodes.badRequest)
+    expect(result).toContain('Enter a JSON object with an id')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('Should ask for JSON before reading submissions', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'get-multiples'
+    })
+
+    expect(statusCode).toBe(statusCodes.badRequest)
+    expect(result).toContain('Enter the JSON to send')
+    expect(result).toContain('data-scroll-to="get-multiples"')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('Should read submissions for a scheme, years and quarters', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(
+          { items: [], pageNumber: 1, pageSize: 0, totalCount: 0 },
+          { status: 200, statusText: 'OK' }
+        )
+      )
+    globalThis.fetch = fetchMock
+
+    const submissionJson = JSON.stringify({
+      schemeOrgId: '674a1b2c3d4e5f6789012345',
+      compliancePeriodYears: [2025, 2026],
+      compliancePeriodQuarters: ['Quarter 1', 'Quarter 2'],
+      tonnageEntries: [{ tonnes: '1.000' }]
+    })
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'get-multiples',
+      submissionJson
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('200 OK')
+    expect(result).toContain('data-scroll-to="get-multiples"')
+
+    const [url, options] = fetchMock.mock.calls[0]
+    expect(url.pathname).toBe('/pom-submissions')
+    expect(url.searchParams.get('schemeOrgId')).toBe('674a1b2c3d4e5f6789012345')
+    expect(url.searchParams.getAll('compliancePeriodYears')).toEqual([
+      '2025',
+      '2026'
+    ])
+    expect(url.searchParams.getAll('compliancePeriodQuarters')).toEqual([
+      'Quarter 1',
+      'Quarter 2'
+    ])
+    expect(url.searchParams.has('tonnageEntries')).toBe(false)
+    expect(options).toEqual({
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        authorization: 'Bearer access-token'
+      }
+    })
+  })
+
+  test('Should read a page of submissions for a member and years', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ items: [] }, { status: 200, statusText: 'OK' })
+      )
+    globalThis.fetch = fetchMock
+
+    const { statusCode } = await signedInPost({
+      intent: 'get-multiples',
+      submissionJson: JSON.stringify({
+        memberOrgId: '674a1b2c3d4e5f6789012711',
+        compliancePeriodYears: [2026],
+        pageNumber: 2,
+        pageSize: 10
+      })
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+
+    const [url] = fetchMock.mock.calls[0]
+    expect(url.searchParams.get('memberOrgId')).toBe('674a1b2c3d4e5f6789012711')
+    expect(url.searchParams.getAll('compliancePeriodYears')).toEqual(['2026'])
+    expect(url.searchParams.get('pageNumber')).toBe('2')
+    expect(url.searchParams.get('pageSize')).toBe('10')
   })
 
   test('Should show a problem when the API call fails', async () => {
@@ -522,7 +670,36 @@ describe('#buildExampleSubmission', () => {
       'Invalid - wrong field format',
       'Invalid - duplicate classification',
       'Invalid - BPRN year mismatch',
-      'Invalid - unknown property'
+      'Invalid - unknown property',
+      '....................',
+      'Get by id',
+      '....................',
+      'Get by scheme id with years and quarters',
+      'Get by member id with years and paginated'
     ])
+  })
+
+  test('Should build a get by id request', () => {
+    expect(parsedExample('get-by-id')).toEqual({
+      id: '674a1b2c3d4e5f6789012346'
+    })
+  })
+
+  test('Should build a scheme list request with years and quarters', () => {
+    expect(parsedExample('get-by-scheme')).toEqual({
+      schemeOrgId: '674a1b2c3d4e5f6789012345',
+      compliancePeriodYears: [2025, 2026],
+      compliancePeriodQuarters: ['Quarter 1', 'Quarter 2']
+    })
+  })
+
+  test('Should build a paginated member list request', () => {
+    const body = parsedExample('get-by-member')
+
+    expect(body.memberOrgId).toMatch(/^[0-9a-f]{24}$/)
+    expect(body.compliancePeriodYears).toEqual([2025, 2026])
+    expect(body.pageNumber).toBe(1)
+    expect(body.pageSize).toBe(10)
+    expect(body.schemeOrgId).toBeUndefined()
   })
 })

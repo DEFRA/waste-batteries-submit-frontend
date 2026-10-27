@@ -9,7 +9,7 @@ import {
 } from './controller.js'
 import { exampleKinds } from './example-submission.js'
 
-// TEMPORARY manual test page for POST /pom-submissions.
+// TEMPORARY manual test page for the POM submissions API.
 // To remove it, delete src/server/routes/pom-submission and the matching
 // TEMPORARY lines in:
 // - src/server/plugins/router.js
@@ -40,9 +40,15 @@ export const pomSubmission = {
           options: {
             validate: {
               payload: Joi.object({
-                intent: Joi.string().valid('post', 'update-json').required(),
+                intent: Joi.string()
+                  .valid('post', 'update-json', 'get-by-id', 'get-multiples')
+                  .required(),
                 exampleKind: Joi.string()
-                  .valid(...exampleKinds.map((kind) => kind.value))
+                  .valid(
+                    ...exampleKinds.flatMap((kind) =>
+                      kind.value ? [kind.value] : []
+                    )
+                  )
                   .empty('')
                   .default('full'),
                 submissionJson: Joi.string().max(maxJsonLength).allow(''),

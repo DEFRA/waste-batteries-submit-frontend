@@ -63,7 +63,7 @@ describe('#buildNavigation', () => {
       },
       {
         current: false,
-        text: 'POM submission create single',
+        text: 'POM submission test page',
         href: '/pom-submission'
       }
     ])
@@ -95,7 +95,7 @@ describe('#buildNavigation', () => {
       },
       {
         current: true,
-        text: 'POM submission create single',
+        text: 'POM submission test page',
         href: '/pom-submission'
       }
     ])

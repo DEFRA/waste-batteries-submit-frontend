@@ -1,10 +1,16 @@
 {% extends 'layouts/page.njk' %}
 
 {% block content %}
-  {{ appHeading({
-    text: heading,
-    caption: "Temporary test page"
-  }) }}
+  <div class="pom-submission-temporary-banner" role="region" aria-label="{{ temporaryLabel }}">
+    <p class="pom-submission-temporary-banner__label">{{ temporaryLabel }}</p>
+    <p class="pom-submission-temporary-banner__detail">This screen is only for trying the submissions API. It is not part of the live service and will be removed prior to go live.</p>
+  </div>
+
+  <div class="govuk-grid-row app-heading">
+    <div class="govuk-grid-column-full">
+      <h1 class="govuk-heading-xl govuk-!-margin-bottom-2">{{ heading }}</h1>
+    </div>
+  </div>
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">

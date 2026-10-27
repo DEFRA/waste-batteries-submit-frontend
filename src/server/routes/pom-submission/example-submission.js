@@ -3,6 +3,7 @@ import { randomBytes, randomInt } from 'node:crypto'
 // TEMPORARY. Delete this folder to remove the manual POM submission page.
 // The scheme stays fixed. Each example randomises the member id, name and tonnes
 // where that still fits the selected case.
+// The API stores batteryCategory as Portable. A request posts chemistry only.
 
 const schemeOrgId = '674a1b2c3d4e5f6789012345'
 const tonnesDecimalPlaces = 3
@@ -14,13 +15,7 @@ export const defaultExampleKind = 'full'
 
 export const exampleKinds = [
   { value: 'full', text: 'Full submission' },
-  { value: 'min-exclude', text: 'Min submission - exclude optional fields' },
-  { value: 'min-null', text: 'Min submission - NULL optional fields' },
-  { value: 'min-blank', text: 'Min submission - blank optional fields' },
-  {
-    value: 'min-whitespace',
-    text: 'Min submission - white space optional fields'
-  },
+  { value: 'minimum', text: 'Minimum submission' },
   { value: 'trim', text: 'Trim' },
   { value: 'invalid-missing', text: 'Invalid - missing req fields' },
   { value: 'invalid-null', text: 'Invalid - NULL req fields' },
@@ -39,29 +34,7 @@ const memberNames = [
   'Severn Batteries Ltd'
 ]
 
-const classifications = [
-  {
-    batteryCategory: 'Portable',
-    chemistry: 'Alkaline',
-    subCategory: 'General use',
-    cellType: 'Primary',
-    equipmentState: 'In equipment'
-  },
-  {
-    batteryCategory: 'Industrial',
-    chemistry: 'Lead acid',
-    subCategory: 'Motive',
-    cellType: 'Secondary',
-    equipmentState: 'Sold separately'
-  },
-  {
-    batteryCategory: 'Automotive',
-    chemistry: 'Lead acid',
-    subCategory: 'SLI',
-    cellType: 'Secondary',
-    equipmentState: 'In equipment'
-  }
-]
+const chemistries = ['Alkaline', 'Lead acid', 'Lithium']
 
 function pretty(value) {
   return JSON.stringify(value, null, 2)
@@ -94,57 +67,22 @@ function member() {
   }
 }
 
-function classificationAt(index, optional) {
-  const source = classifications[index % classifications.length]
-  const required = {
-    batteryCategory: source.batteryCategory,
-    chemistry: source.chemistry
-  }
-
-  if (optional === 'exclude') {
-    return required
-  }
-
-  if (optional === 'null') {
-    return {
-      ...required,
-      subCategory: null,
-      cellType: null,
-      equipmentState: null
-    }
-  }
-
-  if (optional === 'blank') {
-    return { ...required, subCategory: '', cellType: '', equipmentState: '' }
-  }
-
-  if (optional === 'whitespace') {
-    return {
-      ...required,
-      subCategory: '   ',
-      cellType: '   ',
-      equipmentState: '   '
-    }
-  }
-
+function classificationAt(index) {
   return {
-    ...required,
-    subCategory: source.subCategory,
-    cellType: source.cellType,
-    equipmentState: source.equipmentState
+    chemistry: chemistries[index % chemistries.length]
   }
 }
 
-function entry(index, optional, tonnesValue = tonnes()) {
+function entry(index, tonnesValue = tonnes()) {
   return {
-    classification: classificationAt(index, optional),
+    classification: classificationAt(index),
     tonnes: tonnesValue
   }
 }
 
 function twoIndexes() {
-  const first = randomInt(classifications.length)
-  return [first, (first + 1) % classifications.length]
+  const first = randomInt(chemistries.length)
+  return [first, (first + 1) % chemistries.length]
 }
 
 function fullSubmission() {
@@ -152,14 +90,14 @@ function fullSubmission() {
 
   return {
     ...member(),
-    tonnageEntries: [entry(first, 'values'), entry(second, 'values')]
+    tonnageEntries: [entry(first), entry(second)]
   }
 }
 
-function minimumSubmission(optional) {
+function minimumSubmission() {
   return {
     ...member(),
-    tonnageEntries: [entry(randomInt(classifications.length), optional)]
+    tonnageEntries: [entry(randomInt(chemistries.length))]
   }
 }
 
@@ -177,11 +115,7 @@ function trimmedSubmission() {
     dataBasis: padded(submission.dataBasis),
     tonnageEntries: submission.tonnageEntries.map((item) => ({
       classification: {
-        batteryCategory: padded(item.classification.batteryCategory),
-        chemistry: padded(item.classification.chemistry),
-        subCategory: padded(item.classification.subCategory),
-        cellType: padded(item.classification.cellType),
-        equipmentState: padded(item.classification.equipmentState)
+        chemistry: padded(item.classification.chemistry)
       },
       tonnes: padded(item.tonnes)
     }))
@@ -218,7 +152,7 @@ function blankRequired() {
     dataBasis: '',
     tonnageEntries: [
       {
-        classification: { batteryCategory: '', chemistry: '' },
+        classification: { chemistry: '' },
         tonnes: ''
       }
     ]
@@ -232,15 +166,12 @@ function wrongFormat() {
     memberOrgId: 'not-an-object-id',
     memberBprn: 'not-a-bprn',
     compliancePeriodYear: 999,
-    tonnageEntries: [entry(0, 'exclude', negativeTonnes())]
+    tonnageEntries: [entry(0, negativeTonnes())]
   }
 }
 
 function duplicateClassification() {
-  const classification = classificationAt(
-    randomInt(classifications.length),
-    'values'
-  )
+  const classification = classificationAt(randomInt(chemistries.length))
 
   return {
     ...member(),
@@ -253,24 +184,21 @@ function duplicateClassification() {
 
 function bprnYearMismatch() {
   return {
-    ...minimumSubmission('exclude'),
+    ...minimumSubmission(),
     memberBprn: 'BPRN-EA-2025-000123'
   }
 }
 
 function unknownProperty() {
   return {
-    ...minimumSubmission('exclude'),
+    ...minimumSubmission(),
     regulatorNote: 'ignore me'
   }
 }
 
 const builders = {
   full: fullSubmission,
-  'min-exclude': () => minimumSubmission('exclude'),
-  'min-null': () => minimumSubmission('null'),
-  'min-blank': () => minimumSubmission('blank'),
-  'min-whitespace': () => minimumSubmission('whitespace'),
+  minimum: minimumSubmission,
   trim: trimmedSubmission,
   'invalid-missing': missingRequired,
   'invalid-null': nullRequired,

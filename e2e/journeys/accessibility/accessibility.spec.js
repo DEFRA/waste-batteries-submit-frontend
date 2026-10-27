@@ -18,7 +18,8 @@ const pages = [
   { name: 'Example', path: '/example', user: operatorUser },
   // TEMPORARY: delete with src/server/routes/pom-submission
   {
-    name: 'POM submission create single',
+    name: 'POM submission test page',
+    expectedTitle: 'POM submission test page',
     path: '/pom-submission',
     user: operatorUser
   },
@@ -41,7 +42,7 @@ const pages = [
 ]
 
 test.describe('Accessibility', { tag: '@a11y' }, () => {
-  for (const { name, path, user, act, hasErrors } of pages) {
+  for (const { name, path, user, act, hasErrors, expectedTitle } of pages) {
     const open = async (page) => {
       if (user) {
         await signIn(page, user)
@@ -89,7 +90,11 @@ test.describe('Accessibility', { tag: '@a11y' }, () => {
       const heading = (await page.locator('h1').innerText()).trim()
       const [titleStart] = (await page.title()).split(' | ')
 
-      expect(titleStart).toBe(`${hasErrors ? 'Error: ' : ''}${heading}`)
+      // The temporary POM page uses a test-page document title and a
+      // different saving heading, so it can override the usual h1 match.
+      expect(titleStart).toBe(
+        `${hasErrors ? 'Error: ' : ''}${expectedTitle ?? heading}`
+      )
     })
   }
 })

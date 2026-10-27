@@ -21,7 +21,7 @@ export function buildNavigation(request) {
       },
       // TEMPORARY: delete with src/server/routes/pom-submission
       {
-        text: 'POM submission create single',
+        text: 'POM submission test page',
         href: '/pom-submission',
         current: request?.path === '/pom-submission'
       }

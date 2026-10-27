@@ -89,7 +89,12 @@ describe('#pomSubmissionController', () => {
     })
 
     expect(statusCode).toBe(statusCodes.ok)
-    expect(result).toContain('POM submission create single')
+    expect(result).toContain('POM submission test page')
+    expect(result).toContain('pom-submission-temporary-banner')
+    expect(result).toContain('>POM submission saving</h1>')
+    expect(result).toContain(
+      'This screen is only for trying the submissions API. It is not part of the live service and will be removed prior to go live.'
+    )
     expect(result).not.toContain('Example JSON')
     expect(result).toContain('Request JSON')
     expect(result).toContain('rows="33"')
@@ -100,7 +105,11 @@ describe('#pomSubmissionController', () => {
     expect(result).toContain('Update json')
     expect(result).not.toContain('New example')
     expect(result).toContain('value="full" selected')
-    expect(result.match(/batteryCategory/g)).toHaveLength(2)
+    expect(result).not.toContain('batteryCategory')
+    expect(result).not.toContain('subCategory')
+    expect(result).not.toContain('cellType')
+    expect(result).not.toContain('equipmentState')
+    expect(result.match(/chemistry/g)).toHaveLength(2)
     expect(result).toContain('BPRN-EA-2026-000123')
     expect(memberOrgId(result)).toMatch(/^[0-9a-f]{24}$/)
     expect(result).toContain('name="crumb"')
@@ -126,7 +135,7 @@ describe('#pomSubmissionController', () => {
       payload: {
         crumb: extractCrumb(getResponse.result),
         intent: 'update-json',
-        exampleKind: 'min-exclude',
+        exampleKind: 'minimum',
         submissionJson: '{not json',
         responseStatusCode: '201',
         responseStatusText: 'Created',
@@ -139,10 +148,11 @@ describe('#pomSubmissionController', () => {
     expect(memberOrgId(result)).toMatch(/^[0-9a-f]{24}$/)
     expect(memberOrgId(result)).not.toBe(firstMemberOrgId)
     expect(result).not.toContain(firstMemberOrgId)
-    expect(result).toContain('value="min-exclude" selected')
+    expect(result).toContain('value="minimum" selected')
     expect(result).toContain('data-scroll-to="request-json"')
+    expect(result).not.toContain('batteryCategory')
     expect(result).not.toContain('subCategory')
-    expect(result.match(/batteryCategory/g)).toHaveLength(1)
+    expect(result.match(/chemistry/g)).toHaveLength(1)
     expect(result).toContain('201 Created')
     expect(result).toContain('kept-response')
     expect(result).toContain('name="responseStatusCode" value="201"')
@@ -399,7 +409,7 @@ describe('#pomSubmissionController', () => {
 
     expect(statusCode).toBe(statusCodes.internalServerError)
     expect(result).toContain('There was a problem calling the API')
-    expect(result).toContain('Error: POM submission create single')
+    expect(result).toContain('Error: POM submission test page')
   })
 
   test('Should fall back when the example kind or JSON is missing', () => {
@@ -411,7 +421,10 @@ describe('#pomSubmissionController', () => {
     expect(page.exampleKind).toBe(defaultExampleKind)
     expect(page.submissionJson).toBe('')
     expect(page.crumb).toBe('crumb-token')
-    expect(page.pageTitle).toBe('POM submission create single')
+    expect(page.pageTitle).toBe('POM submission test page')
+    expect(page.heading).toBe('POM submission saving')
+    expect(page.temporaryLabel).toBe('Temporary test page')
+    expect(page.breadcrumbs[1].text).toBe('POM submission test page')
   })
 })
 
@@ -432,47 +445,22 @@ describe('#buildExampleSubmission', () => {
 
     expect(defaultExampleKind).toBe('full')
     expect(body.tonnageEntries).toHaveLength(2)
-    expect(body.tonnageEntries[0].classification.subCategory).toEqual(
-      expect.any(String)
-    )
+    expect(body.tonnageEntries[0].classification).toEqual({
+      chemistry: expect.any(String)
+    })
     expect(body.tonnageEntries[0].classification).not.toEqual(
       body.tonnageEntries[1].classification
     )
   })
 
-  test('Should build a minimum submission without optional classification fields', () => {
-    const classification =
-      parsedExample('min-exclude').tonnageEntries[0].classification
+  test('Should build a minimum submission with chemistry only', () => {
+    const body = parsedExample('minimum')
+    const classification = body.tonnageEntries[0].classification
 
-    expect(parsedExample('min-exclude').tonnageEntries).toHaveLength(1)
-    expect(Object.keys(classification)).toEqual([
-      'batteryCategory',
-      'chemistry'
-    ])
-  })
-
-  test('Should set optional classification fields to null, blank or whitespace', () => {
-    expect(
-      parsedExample('min-null').tonnageEntries[0].classification
-    ).toMatchObject({
-      subCategory: null,
-      cellType: null,
-      equipmentState: null
+    expect(body.tonnageEntries).toHaveLength(1)
+    expect(classification).toEqual({
+      chemistry: expect.any(String)
     })
-    expect(
-      parsedExample('min-blank').tonnageEntries[0].classification
-    ).toMatchObject({
-      subCategory: '',
-      cellType: '',
-      equipmentState: ''
-    })
-
-    const whitespace =
-      parsedExample('min-whitespace').tonnageEntries[0].classification
-    expect(whitespace.subCategory.trim()).toBe('')
-    expect(whitespace.cellType.trim()).toBe('')
-    expect(whitespace.equipmentState.trim()).toBe('')
-    expect(whitespace.subCategory.length).toBeGreaterThan(0)
   })
 
   test('Should pad every string when the example is trim', () => {
@@ -482,9 +470,9 @@ describe('#buildExampleSubmission', () => {
     expect(body.schemeOrgId).toMatch(/^ {2}\S.*\S {2}$/)
     expect(body.compliancePeriodYear).toBe(2026)
     expect(body.tonnageEntries[0].tonnes).toMatch(/^ {2}\d+\.\d{3} {2}$/)
-    expect(body.tonnageEntries[0].classification.subCategory).toMatch(
-      /^ {2}\S.*\S {2}$/
-    )
+    expect(body.tonnageEntries[0].classification).toEqual({
+      chemistry: expect.stringMatching(/^ {2}\S.*\S {2}$/)
+    })
   })
 
   test('Should build each invalid example', () => {
@@ -526,10 +514,7 @@ describe('#buildExampleSubmission', () => {
   test('Should list the examples in dropdown order', () => {
     expect(exampleKinds.map((kind) => kind.text)).toEqual([
       'Full submission',
-      'Min submission - exclude optional fields',
-      'Min submission - NULL optional fields',
-      'Min submission - blank optional fields',
-      'Min submission - white space optional fields',
+      'Minimum submission',
       'Trim',
       'Invalid - missing req fields',
       'Invalid - NULL req fields',

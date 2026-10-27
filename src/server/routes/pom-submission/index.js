@@ -18,6 +18,8 @@ import { exampleKinds } from './example-submission.js'
 // - e2e/journeys/accessibility/accessibility.spec.js
 // - src/client/stylesheets/partials/_index.scss
 // - src/client/javascripts/application.js
+// The submissions API base URL in src/config/config.js stays. It is how this
+// service calls the Submissions API, and is not part of the temporary page.
 
 const maxJsonLength = 100_000
 const maxStatusCodeLength = 3

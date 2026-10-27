@@ -7,7 +7,9 @@ import {
 } from './example-submission.js'
 import { createPomSubmission } from './pom-submission-api.js'
 
-const pageTitle = 'POM submission create single'
+const pageTitle = 'POM submission test page'
+const heading = 'POM submission saving'
+const temporaryLabel = 'Temporary test page'
 const pomSubmissionView = 'pom-submission/index'
 
 function selectedKind(value) {
@@ -21,7 +23,8 @@ export function pomSubmissionPage(request, values = {}) {
 
   return {
     pageTitle: values.errorMessage ? `Error: ${pageTitle}` : pageTitle,
-    heading: pageTitle,
+    heading,
+    temporaryLabel,
     breadcrumbs: [{ text: 'Home', href: '/' }, { text: pageTitle }],
     crumb: request.plugins.crumb,
     exampleKinds,

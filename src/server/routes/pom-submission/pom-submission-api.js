@@ -4,6 +4,8 @@ import { gunzip as gunzipCallback } from 'node:zlib'
 import { config } from '#/config/config.js'
 
 const gunzip = promisify(gunzipCallback)
+const gzipId1 = 0x1f
+const gzipId2 = 0x8b
 
 function backendUrl(path) {
   return new URL(path, config.get('wasteBatteriesSubmitBackendUrl'))
@@ -44,7 +46,7 @@ async function readBody(response) {
   }
 
   // Fetch can inflate the body and still report gzip. A raw gzip body starts with 1f 8b.
-  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) {
+  if (bytes[0] !== gzipId1 || bytes[1] !== gzipId2) {
     return bytes.toString('utf8')
   }
 

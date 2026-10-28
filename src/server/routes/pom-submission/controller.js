@@ -15,6 +15,7 @@ const pageTitle = 'POM submission test page'
 const heading = 'POM submission saving'
 const temporaryLabel = 'Temporary test page'
 const pomSubmissionView = 'pom-submission/index'
+const getMultiplesIntent = 'get-multiples'
 
 function selectedKind(value) {
   return exampleKinds.some((kind) => kind.value === value)
@@ -31,8 +32,8 @@ function scrollTarget(intent) {
     return 'get-by-id'
   }
 
-  if (intent === 'get-multiples') {
-    return 'get-multiples'
+  if (intent === getMultiplesIntent) {
+    return getMultiplesIntent
   }
 
   return 'create-single'
@@ -267,7 +268,7 @@ export const pomSubmissionPostController = {
       return readSubmission(request, h, page, id)
     }
 
-    if (request.payload.intent === 'get-multiples') {
+    if (request.payload.intent === getMultiplesIntent) {
       return readSubmissions(request, h, page, body)
     }
 

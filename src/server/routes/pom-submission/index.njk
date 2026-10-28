@@ -14,7 +14,7 @@
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      <p class="govuk-body">This page posts the JSON below to <code>POST /pom-submissions</code> and shows the API status code and body. Update json replaces the request with a new example for the selected case. Send the same JSON twice to see the duplicate submission error.</p>
+      <p class="govuk-body">This page sends the JSON below to the submissions API and shows the status code and body. Update json replaces the request with an example for the selected case. Create single posts one submission. Get by id reads the submission whose id is in the JSON. Get multiples reads the list using the JSON fields as query parameters. Send the same create JSON twice to see the duplicate submission error.</p>
 
       {% if errorMessage %}
         <div class="govuk-error-summary" data-module="govuk-error-summary">
@@ -52,7 +52,11 @@
           <div class="govuk-button-group pom-submission-examples">
             <select class="govuk-select" id="exampleKind" name="exampleKind">
               {% for kind in exampleKinds %}
-                <option value="{{ kind.value }}"{% if kind.value == exampleKind %} selected{% endif %}>{{ kind.text }}</option>
+                {% if kind.separator %}
+                  <option disabled>{{ kind.text }}</option>
+                {% else %}
+                  <option value="{{ kind.value }}"{% if kind.value == exampleKind %} selected{% endif %}>{{ kind.text }}</option>
+                {% endif %}
               {% endfor %}
             </select>
             <button class="govuk-button govuk-button--secondary" data-module="govuk-button" name="intent" value="update-json" formaction="/pom-submission#request-json">Update json</button>
@@ -60,7 +64,9 @@
         </div>
 
         <div class="govuk-button-group">
-          <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="send-request" name="intent" value="post" formaction="/pom-submission#send-request">Send request</button>
+          <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="create-single" name="intent" value="post" formaction="/pom-submission#create-single">Create single</button>
+          <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="get-by-id" name="intent" value="get-by-id" formaction="/pom-submission#get-by-id">Get by id</button>
+          <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="get-multiples" name="intent" value="get-multiples" formaction="/pom-submission#get-multiples">Get multiples</button>
         </div>
       </form>
 

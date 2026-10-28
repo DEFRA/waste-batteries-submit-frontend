@@ -6,12 +6,22 @@ import { randomBytes, randomInt } from 'node:crypto'
 // The API stores batteryCategory as Portable. A request posts chemistry only.
 
 const schemeOrgId = '674a1b2c3d4e5f6789012345'
+const exampleSubmissionId = '674a1b2c3d4e5f6789012346'
 const tonnesDecimalPlaces = 3
 const memberOrgIdBytes = 12
 const memberNameSuffixMin = 1000
 const memberNameSuffixMax = 9999
+const firstExampleYear = 2025
+const secondExampleYear = 2026
+const exampleYears = [firstExampleYear, secondExampleYear]
+const exampleQuarters = ['Quarter 1', 'Quarter 2']
+const examplePageNumber = 1
+const examplePageSize = 10
+const dottedLine = '....................'
 
 export const defaultExampleKind = 'full'
+
+const separator = { separator: true, text: dottedLine }
 
 export const exampleKinds = [
   { value: 'full', text: 'Full submission' },
@@ -23,7 +33,18 @@ export const exampleKinds = [
   { value: 'invalid-format', text: 'Invalid - wrong field format' },
   { value: 'invalid-duplicate', text: 'Invalid - duplicate classification' },
   { value: 'invalid-bprn-year', text: 'Invalid - BPRN year mismatch' },
-  { value: 'invalid-unknown', text: 'Invalid - unknown property' }
+  { value: 'invalid-unknown', text: 'Invalid - unknown property' },
+  separator,
+  { value: 'get-by-id', text: 'Get by id' },
+  separator,
+  {
+    value: 'get-by-scheme',
+    text: 'Get by scheme id with years and quarters'
+  },
+  {
+    value: 'get-by-member',
+    text: 'Get by member id with years and paginated'
+  }
 ]
 
 const memberNames = [
@@ -196,6 +217,29 @@ function unknownProperty() {
   }
 }
 
+function getById() {
+  return {
+    id: exampleSubmissionId
+  }
+}
+
+function getByScheme() {
+  return {
+    schemeOrgId,
+    compliancePeriodYears: exampleYears,
+    compliancePeriodQuarters: exampleQuarters
+  }
+}
+
+function getByMember() {
+  return {
+    memberOrgId: randomBytes(memberOrgIdBytes).toString('hex'),
+    compliancePeriodYears: exampleYears,
+    pageNumber: examplePageNumber,
+    pageSize: examplePageSize
+  }
+}
+
 const builders = {
   full: fullSubmission,
   minimum: minimumSubmission,
@@ -206,7 +250,10 @@ const builders = {
   'invalid-format': wrongFormat,
   'invalid-duplicate': duplicateClassification,
   'invalid-bprn-year': bprnYearMismatch,
-  'invalid-unknown': unknownProperty
+  'invalid-unknown': unknownProperty,
+  'get-by-id': getById,
+  'get-by-scheme': getByScheme,
+  'get-by-member': getByMember
 }
 
 export function buildExampleSubmission(kind = defaultExampleKind) {

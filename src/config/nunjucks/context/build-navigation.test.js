@@ -60,6 +60,43 @@ describe('#buildNavigation', () => {
         current: true,
         text: 'Example',
         href: '/example'
+      },
+      {
+        current: false,
+        text: 'POM submission test page',
+        href: '/pom-submission'
+      }
+    ])
+  })
+
+  test('Should highlight the POM submission page for signed-in users', () => {
+    expect(
+      buildNavigation(
+        mockRequest({
+          path: '/pom-submission',
+          auth: { isAuthenticated: true }
+        })
+      )
+    ).toEqual([
+      {
+        current: false,
+        text: 'Home',
+        href: '/'
+      },
+      {
+        current: false,
+        text: 'About',
+        href: '/about'
+      },
+      {
+        current: false,
+        text: 'Example',
+        href: '/example'
+      },
+      {
+        current: true,
+        text: 'POM submission test page',
+        href: '/pom-submission'
       }
     ])
   })

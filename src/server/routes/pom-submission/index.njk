@@ -1,0 +1,75 @@
+{% extends 'layouts/page.njk' %}
+
+{% block content %}
+  <div class="pom-submission-temporary-banner" role="region" aria-label="{{ temporaryLabel }}">
+    <p class="pom-submission-temporary-banner__label">{{ temporaryLabel }}</p>
+    <p class="pom-submission-temporary-banner__detail">This screen is only for trying the submissions API. It is not part of the live service and will be removed prior to go live.</p>
+  </div>
+
+  <div class="govuk-grid-row app-heading">
+    <div class="govuk-grid-column-full">
+      <h1 class="govuk-heading-xl govuk-!-margin-bottom-2">{{ heading }}</h1>
+    </div>
+  </div>
+
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-full">
+      <p class="govuk-body">This page posts the JSON below to <code>POST /pom-submissions</code> and shows the API status code and body. Update json replaces the request with a new example for the selected case. Send the same JSON twice to see the duplicate submission error.</p>
+
+      {% if errorMessage %}
+        <div class="govuk-error-summary" data-module="govuk-error-summary">
+          <div role="alert">
+            <h2 class="govuk-error-summary__title">There is a problem</h2>
+            <div class="govuk-error-summary__body">
+              <ul class="govuk-list govuk-error-summary__list">
+                <li><a href="#submissionJson">{{ errorMessage }}</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <form method="post" action="/pom-submission" novalidate{% if scrollTo %} data-scroll-to="{{ scrollTo }}"{% endif %}>
+        <input type="hidden" name="crumb" value="{{ crumb }}">
+        {% if response %}
+          <input type="hidden" name="responseStatusCode" value="{{ response.statusCode }}">
+          <input type="hidden" name="responseStatusText" value="{{ response.statusText }}">
+          <input type="hidden" name="responseBody" value="{{ response.body }}">
+        {% endif %}
+
+        <div class="govuk-form-group{% if errorMessage %} govuk-form-group--error{% endif %}">
+          <label class="govuk-label govuk-label--m pom-submission-scroll-target" id="request-json" for="submissionJson">Request JSON</label>
+          {% if errorMessage %}
+            <p id="submissionJson-error" class="govuk-error-message">
+              <span class="govuk-visually-hidden">Error:</span> {{ errorMessage }}
+            </p>
+          {% endif %}
+          <textarea class="govuk-textarea{% if errorMessage %} govuk-textarea--error{% endif %} pom-submission-json" id="submissionJson" name="submissionJson" rows="33" spellcheck="false"{% if errorMessage %} aria-describedby="submissionJson-error"{% endif %}>{{ submissionJson }}</textarea>
+        </div>
+
+        <div class="govuk-form-group">
+          <label class="govuk-label" for="exampleKind">Example</label>
+          <div class="govuk-button-group pom-submission-examples">
+            <select class="govuk-select" id="exampleKind" name="exampleKind">
+              {% for kind in exampleKinds %}
+                <option value="{{ kind.value }}"{% if kind.value == exampleKind %} selected{% endif %}>{{ kind.text }}</option>
+              {% endfor %}
+            </select>
+            <button class="govuk-button govuk-button--secondary" data-module="govuk-button" name="intent" value="update-json" formaction="/pom-submission#request-json">Update json</button>
+          </div>
+        </div>
+
+        <div class="govuk-button-group">
+          <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="send-request" name="intent" value="post" formaction="/pom-submission#send-request">Send request</button>
+        </div>
+      </form>
+
+      {% if response %}
+        <h2 class="govuk-heading-m">Response</h2>
+        <p class="govuk-body">Status code <strong>{{ response.statusCode }} {{ response.statusText }}</strong></p>
+        <pre class="pom-submission-json" id="response-body">{{ response.body }}</pre>
+      {% endif %}
+    </div>
+  </div>
+
+{% endblock %}

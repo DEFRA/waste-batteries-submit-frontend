@@ -6,6 +6,7 @@ import {
   exampleKinds
 } from './example-submission.js'
 import {
+  amendPomSubmission,
   createPomSubmission,
   getPomSubmission,
   listPomSubmissions
@@ -15,6 +16,7 @@ const pageTitle = 'POM submission test page'
 const heading = 'POM submission saving'
 const temporaryLabel = 'Temporary test page'
 const pomSubmissionView = 'pom-submission/index'
+const patchIntent = 'patch'
 const getMultiplesIntent = 'get-multiples'
 
 function selectedKind(value) {
@@ -26,6 +28,10 @@ function selectedKind(value) {
 function scrollTarget(intent) {
   if (intent === 'update-json') {
     return 'request-json'
+  }
+
+  if (intent === patchIntent) {
+    return 'amend-single'
   }
 
   if (intent === 'get-by-id') {
@@ -162,6 +168,18 @@ function accessToken(request) {
   return request.auth.credentials.accessToken
 }
 
+function missingJsonMessage(intent) {
+  if (intent === 'post') {
+    return 'Enter the JSON to post'
+  }
+
+  if (intent === patchIntent) {
+    return 'Enter the JSON to amend'
+  }
+
+  return 'Enter the JSON to send'
+}
+
 function postSubmission(request, h, page) {
   return callApi(
     request,
@@ -173,6 +191,20 @@ function postSubmission(request, h, page) {
         accessToken: accessToken(request)
       }),
     'Could not post the POM submission'
+  )
+}
+
+function amendSubmission(request, h, page) {
+  return callApi(
+    request,
+    h,
+    page,
+    () =>
+      amendPomSubmission({
+        body: page.submissionJson,
+        accessToken: accessToken(request)
+      }),
+    'Could not amend the POM submission'
   )
 }
 
@@ -227,10 +259,7 @@ export const pomSubmissionPostController = {
         request,
         {
           ...page,
-          errorMessage:
-            request.payload.intent === 'post'
-              ? 'Enter the JSON to post'
-              : 'Enter the JSON to send'
+          errorMessage: missingJsonMessage(request.payload.intent)
         },
         statusCodes.badRequest
       )
@@ -248,6 +277,10 @@ export const pomSubmissionPostController = {
         },
         statusCodes.badRequest
       )
+    }
+
+    if (request.payload.intent === patchIntent) {
+      return amendSubmission(request, h, page)
     }
 
     if (request.payload.intent === 'get-by-id') {

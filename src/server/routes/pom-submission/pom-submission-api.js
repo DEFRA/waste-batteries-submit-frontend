@@ -92,6 +92,19 @@ export async function createPomSubmission({ body, accessToken }) {
   return readResponse(response)
 }
 
+export async function amendPomSubmission({ body, accessToken }) {
+  const response = await fetch(backendUrl('/pom-submissions'), {
+    method: 'PATCH',
+    headers: {
+      ...jsonHeaders(accessToken),
+      'content-type': 'application/json'
+    },
+    body
+  })
+
+  return readResponse(response)
+}
+
 export async function getPomSubmission({ id, accessToken }) {
   const response = await fetch(
     backendUrl(`/pom-submissions/${encodeURIComponent(id)}`),

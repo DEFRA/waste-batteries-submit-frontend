@@ -6,6 +6,7 @@ import { config } from '#/config/config.js'
 const gunzip = promisify(gunzipCallback)
 const gzipId1 = 0x1f
 const gzipId2 = 0x8b
+const pomSubmissionsPath = '/pom-submissions'
 
 function backendUrl(path) {
   return new URL(path, config.get('wasteBatteriesSubmitBackendUrl'))
@@ -76,11 +77,11 @@ function listPath(filters) {
   }
 
   const query = params.toString()
-  return query === '' ? '/pom-submissions' : `/pom-submissions?${query}`
+  return query === '' ? pomSubmissionsPath : `${pomSubmissionsPath}?${query}`
 }
 
 export async function createPomSubmission({ body, accessToken }) {
-  const response = await fetch(backendUrl('/pom-submissions'), {
+  const response = await fetch(backendUrl(pomSubmissionsPath), {
     method: 'POST',
     headers: {
       ...jsonHeaders(accessToken),
@@ -93,7 +94,7 @@ export async function createPomSubmission({ body, accessToken }) {
 }
 
 export async function amendPomSubmission({ body, accessToken }) {
-  const response = await fetch(backendUrl('/pom-submissions'), {
+  const response = await fetch(backendUrl(pomSubmissionsPath), {
     method: 'PATCH',
     headers: {
       ...jsonHeaders(accessToken),
@@ -107,7 +108,7 @@ export async function amendPomSubmission({ body, accessToken }) {
 
 export async function getPomSubmission({ id, accessToken }) {
   const response = await fetch(
-    backendUrl(`/pom-submissions/${encodeURIComponent(id)}`),
+    backendUrl(`${pomSubmissionsPath}/${encodeURIComponent(id)}`),
     {
       method: 'GET',
       headers: jsonHeaders(accessToken)

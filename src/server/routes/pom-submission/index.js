@@ -41,7 +41,13 @@ export const pomSubmission = {
             validate: {
               payload: Joi.object({
                 intent: Joi.string()
-                  .valid('post', 'update-json', 'get-by-id', 'get-multiples')
+                  .valid(
+                    'post',
+                    'patch',
+                    'update-json',
+                    'get-by-id',
+                    'get-multiples'
+                  )
                   .required(),
                 exampleKind: Joi.string()
                   .valid(

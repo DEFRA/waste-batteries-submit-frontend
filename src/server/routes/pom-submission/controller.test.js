@@ -103,9 +103,11 @@ describe('#pomSubmissionController', () => {
     expect(result).not.toContain('data-scroll-to')
     expect(result).toContain('formaction="/pom-submission#request-json"')
     expect(result).toContain('formaction="/pom-submission#create-single"')
+    expect(result).toContain('formaction="/pom-submission#amend-single"')
     expect(result).toContain('formaction="/pom-submission#get-by-id"')
     expect(result).toContain('formaction="/pom-submission#get-multiples"')
     expect(result).toContain('Create single')
+    expect(result).toContain('Amend single')
     expect(result).toContain('Get by id')
     expect(result).toContain('Get multiples')
     expect(result).toContain('<option disabled>....................</option>')
@@ -329,6 +331,60 @@ describe('#pomSubmissionController', () => {
     expect(withoutJson.statusCode).toBe(statusCodes.badRequest)
     expect(withoutJson.result).toContain('The request could not be read')
     expect(withoutJson.result).toContain('name="submissionJson"')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('Should patch one submission', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(
+          { id: '674a1b2c3d4e5f6789012348', status: 'Submitted' },
+          { status: 200, statusText: 'OK' }
+        )
+      )
+    globalThis.fetch = fetchMock
+
+    const submissionJson = JSON.stringify({
+      schemeOrgId: '674a1b2c3d4e5f6789012345',
+      memberOrgId: '674a1b2c3d4e5f6789012711',
+      memberName: 'Northwind Batteries Ltd'
+    })
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'patch',
+      submissionJson
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('200 OK')
+    expect(result).toContain('data-scroll-to="amend-single"')
+    expect(result).toContain('674a1b2c3d4e5f6789012348')
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('/pom-submissions', 'http://localhost:3001'),
+      {
+        method: 'PATCH',
+        headers: {
+          accept: 'application/json',
+          authorization: 'Bearer access-token',
+          'content-type': 'application/json'
+        },
+        body: submissionJson
+      }
+    )
+  })
+
+  test('Should ask for JSON before amending a submission', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'patch'
+    })
+
+    expect(statusCode).toBe(statusCodes.badRequest)
+    expect(result).toContain('Enter the JSON to amend')
+    expect(result).toContain('data-scroll-to="amend-single"')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

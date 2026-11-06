@@ -9,7 +9,8 @@ import {
   amendPomSubmission,
   createPomSubmission,
   getPomSubmission,
-  listPomSubmissions
+  listPomSubmissions,
+  upsertBatchPomSubmissions
 } from './pom-submission-api.js'
 
 const pageTitle = 'POM submission test page'
@@ -17,6 +18,7 @@ const heading = 'POM submission saving'
 const temporaryLabel = 'Temporary test page'
 const pomSubmissionView = 'pom-submission/index'
 const patchIntent = 'patch'
+const upsertBatchIntent = 'upsert-batch'
 const getMultiplesIntent = 'get-multiples'
 
 function selectedKind(value) {
@@ -32,6 +34,10 @@ function scrollTarget(intent) {
 
   if (intent === patchIntent) {
     return 'amend-single'
+  }
+
+  if (intent === upsertBatchIntent) {
+    return 'batch-upsert'
   }
 
   if (intent === 'get-by-id') {
@@ -100,18 +106,17 @@ export const pomSubmissionGetController = {
   }
 }
 
-function jsonObject(submissionJson) {
+function parsedJson(submissionJson) {
   try {
-    const parsed = JSON.parse(submissionJson)
-    if (
-      parsed !== null &&
-      typeof parsed === 'object' &&
-      !Array.isArray(parsed)
-    ) {
-      return parsed
-    }
+    return JSON.parse(submissionJson)
   } catch {
-    return null
+    return undefined
+  }
+}
+
+function jsonObject(value) {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    return value
   }
 
   return null
@@ -177,6 +182,10 @@ function missingJsonMessage(intent) {
     return 'Enter the JSON to amend'
   }
 
+  if (intent === upsertBatchIntent) {
+    return 'Enter the JSON to upsert'
+  }
+
   return 'Enter the JSON to send'
 }
 
@@ -191,6 +200,20 @@ function postSubmission(request, h, page) {
         accessToken: accessToken(request)
       }),
     'Could not post the POM submission'
+  )
+}
+
+function upsertBatch(request, h, page) {
+  return callApi(
+    request,
+    h,
+    page,
+    () =>
+      upsertBatchPomSubmissions({
+        body: page.submissionJson,
+        accessToken: accessToken(request)
+      }),
+    'Could not upsert the POM submission batch'
   )
 }
 
@@ -265,7 +288,26 @@ export const pomSubmissionPostController = {
       )
     }
 
-    const body = jsonObject(submissionJson)
+    const parsed = parsedJson(submissionJson)
+
+    if (request.payload.intent === upsertBatchIntent) {
+      if (!Array.isArray(parsed)) {
+        return viewPage(
+          h,
+          request,
+          {
+            ...page,
+            errorMessage:
+              parsed === undefined ? 'Enter valid JSON' : 'Enter a JSON array'
+          },
+          statusCodes.badRequest
+        )
+      }
+
+      return upsertBatch(request, h, page)
+    }
+
+    const body = jsonObject(parsed)
 
     if (!body) {
       return viewPage(

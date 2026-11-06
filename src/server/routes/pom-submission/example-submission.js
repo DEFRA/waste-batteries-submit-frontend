@@ -35,6 +35,13 @@ export const exampleKinds = [
   { value: 'invalid-bprn-year', text: 'Invalid - BPRN year mismatch' },
   { value: 'invalid-unknown', text: 'Invalid - unknown property' },
   separator,
+  { value: 'batch-two', text: 'Batch - two submissions' },
+  { value: 'batch-empty', text: 'Batch - empty' },
+  { value: 'batch-null', text: 'Batch - null item' },
+  { value: 'batch-repeated', text: 'Batch - repeated key' },
+  { value: 'batch-invalid', text: 'Batch - invalid item' },
+  { value: 'batch-mixed', text: 'Batch - mixed errors' },
+  separator,
   { value: 'get-by-id', text: 'Get by id' },
   separator,
   {
@@ -217,6 +224,56 @@ function unknownProperty() {
   }
 }
 
+function batchTwo() {
+  return [fullSubmission(), fullSubmission()]
+}
+
+function batchEmpty() {
+  return []
+}
+
+function batchNullItem() {
+  return [minimumSubmission(), null]
+}
+
+function batchRepeated() {
+  const first = minimumSubmission()
+
+  return [
+    first,
+    {
+      ...first,
+      tonnageEntries: [entry(randomInt(chemistries.length))]
+    }
+  ]
+}
+
+function batchInvalidItem() {
+  return [minimumSubmission(), { ...minimumSubmission(), memberName: '' }]
+}
+
+function batchMixedErrors() {
+  const duplicated = minimumSubmission()
+
+  return [
+    minimumSubmission(),
+    minimumSubmission(),
+    duplicated,
+    {
+      ...duplicated,
+      tonnageEntries: [entry(randomInt(chemistries.length))]
+    },
+    null,
+    { ...minimumSubmission(), memberName: '' },
+    {
+      ...minimumSubmission(),
+      tonnageEntries: [entry(0, '12.5')]
+    },
+    duplicateClassification(),
+    bprnYearMismatch()
+  ]
+}
+
 function getById() {
   return {
     id: exampleSubmissionId
@@ -251,6 +308,12 @@ const builders = {
   'invalid-duplicate': duplicateClassification,
   'invalid-bprn-year': bprnYearMismatch,
   'invalid-unknown': unknownProperty,
+  'batch-two': batchTwo,
+  'batch-empty': batchEmpty,
+  'batch-null': batchNullItem,
+  'batch-repeated': batchRepeated,
+  'batch-invalid': batchInvalidItem,
+  'batch-mixed': batchMixedErrors,
   'get-by-id': getById,
   'get-by-scheme': getByScheme,
   'get-by-member': getByMember

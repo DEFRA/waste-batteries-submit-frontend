@@ -93,6 +93,22 @@ export async function createPomSubmission({ body, accessToken }) {
   return readResponse(response)
 }
 
+export async function upsertBatchPomSubmissions({ body, accessToken }) {
+  const response = await fetch(
+    backendUrl(`${pomSubmissionsPath}/upsert-batch`),
+    {
+      method: 'POST',
+      headers: {
+        ...jsonHeaders(accessToken),
+        'content-type': 'application/json'
+      },
+      body
+    }
+  )
+
+  return readResponse(response)
+}
+
 export async function amendPomSubmission({ body, accessToken }) {
   const response = await fetch(backendUrl(pomSubmissionsPath), {
     method: 'PATCH',

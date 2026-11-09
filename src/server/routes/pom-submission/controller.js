@@ -259,6 +259,62 @@ function readSubmissions(request, h, page, filters) {
   )
 }
 
+function rejectJson(h, request, page, errorMessage) {
+  return viewPage(
+    h,
+    request,
+    {
+      ...page,
+      errorMessage
+    },
+    statusCodes.badRequest
+  )
+}
+
+function batchArrayMessage(parsed) {
+  return parsed === undefined ? 'Enter valid JSON' : 'Enter a JSON array'
+}
+
+function readById(request, h, page, body) {
+  const id = submissionId(body)
+
+  if (id === '') {
+    return rejectJson(h, request, page, 'Enter a JSON object with an id')
+  }
+
+  return readSubmission(request, h, page, id)
+}
+
+function submitParsed(request, h, page, parsed) {
+  if (request.payload.intent === upsertBatchIntent) {
+    if (!Array.isArray(parsed)) {
+      return rejectJson(h, request, page, batchArrayMessage(parsed))
+    }
+
+    return upsertBatch(request, h, page)
+  }
+
+  const body = jsonObject(parsed)
+
+  if (!body) {
+    return rejectJson(h, request, page, 'Enter valid JSON')
+  }
+
+  if (request.payload.intent === patchIntent) {
+    return amendSubmission(request, h, page)
+  }
+
+  if (request.payload.intent === 'get-by-id') {
+    return readById(request, h, page, body)
+  }
+
+  if (request.payload.intent === getMultiplesIntent) {
+    return readSubmissions(request, h, page, body)
+  }
+
+  return postSubmission(request, h, page)
+}
+
 export const pomSubmissionPostController = {
   async handler(request, h) {
     const exampleKind = selectedKind(request.payload.exampleKind)
@@ -277,76 +333,14 @@ export const pomSubmissionPostController = {
     const page = { exampleKind, submissionJson, scrollTo }
 
     if (submissionJson.trim() === '') {
-      return viewPage(
+      return rejectJson(
         h,
         request,
-        {
-          ...page,
-          errorMessage: missingJsonMessage(request.payload.intent)
-        },
-        statusCodes.badRequest
+        page,
+        missingJsonMessage(request.payload.intent)
       )
     }
 
-    const parsed = parsedJson(submissionJson)
-
-    if (request.payload.intent === upsertBatchIntent) {
-      if (!Array.isArray(parsed)) {
-        return viewPage(
-          h,
-          request,
-          {
-            ...page,
-            errorMessage:
-              parsed === undefined ? 'Enter valid JSON' : 'Enter a JSON array'
-          },
-          statusCodes.badRequest
-        )
-      }
-
-      return upsertBatch(request, h, page)
-    }
-
-    const body = jsonObject(parsed)
-
-    if (!body) {
-      return viewPage(
-        h,
-        request,
-        {
-          ...page,
-          errorMessage: 'Enter valid JSON'
-        },
-        statusCodes.badRequest
-      )
-    }
-
-    if (request.payload.intent === patchIntent) {
-      return amendSubmission(request, h, page)
-    }
-
-    if (request.payload.intent === 'get-by-id') {
-      const id = submissionId(body)
-
-      if (id === '') {
-        return viewPage(
-          h,
-          request,
-          {
-            ...page,
-            errorMessage: 'Enter a JSON object with an id'
-          },
-          statusCodes.badRequest
-        )
-      }
-
-      return readSubmission(request, h, page, id)
-    }
-
-    if (request.payload.intent === getMultiplesIntent) {
-      return readSubmissions(request, h, page, body)
-    }
-
-    return postSubmission(request, h, page)
+    return submitParsed(request, h, page, parsedJson(submissionJson))
   }
 }

@@ -15,7 +15,22 @@ const firstExampleYear = 2025
 const secondExampleYear = 2026
 const exampleYears = [firstExampleYear, secondExampleYear]
 const exampleQuarters = ['Quarter 1', 'Quarter 2']
-const memberFullSetYears = [2021, 2022, 2023, 2024, 2025, 2026]
+const memberFullSetStartYear = 2021
+
+function yearsThrough(startYear, endYear) {
+  const years = []
+
+  for (let year = startYear; year <= endYear; year += 1) {
+    years.push(year)
+  }
+
+  return years
+}
+
+const memberFullSetYears = yearsThrough(
+  memberFullSetStartYear,
+  secondExampleYear
+)
 const memberFullSetQuarters = [
   'Quarter 1',
   'Quarter 2',
@@ -226,7 +241,7 @@ function duplicateClassification() {
 function bprnYearMismatch() {
   return {
     ...minimumSubmission(),
-    memberBprn: 'BPRN-EA-2025-000123'
+    memberBprn: memberBprn(firstExampleYear)
   }
 }
 

@@ -122,7 +122,14 @@ describe('#pomSubmissionController', () => {
       result.match(/<option disabled>....................<\/option>/g)
     ).toHaveLength(3)
     expect(result).toContain('Batch - two submissions')
+    expect(result).toContain('Batch - member full set')
     expect(result).toContain('Batch - empty')
+    expect(result.indexOf('Batch - two submissions')).toBeLessThan(
+      result.indexOf('Batch - member full set')
+    )
+    expect(result.indexOf('Batch - member full set')).toBeLessThan(
+      result.indexOf('Batch - empty')
+    )
     expect(result).toContain('Batch - null item')
     expect(result).toContain('Batch - repeated key')
     expect(result).toContain('Batch - invalid item')
@@ -882,6 +889,7 @@ describe('#buildExampleSubmission', () => {
       'Invalid - unknown property',
       '....................',
       'Batch - two submissions',
+      'Batch - member full set',
       'Batch - empty',
       'Batch - null item',
       'Batch - repeated key',
@@ -904,6 +912,41 @@ describe('#buildExampleSubmission', () => {
     expect(two[0].memberOrgId).not.toBe(two[1].memberOrgId)
     expect(two[0].tonnageEntries).toHaveLength(2)
     expect(two[1].tonnageEntries).toHaveLength(2)
+
+    const memberSet = parsedExample('batch-member')
+    const memberYears = [2021, 2022, 2023, 2024, 2025, 2026]
+    const memberQuarters = ['Quarter 1', 'Quarter 2', 'Quarter 3', 'Quarter 4']
+    const periods = memberSet.map(
+      (item) => `${item.compliancePeriodYear} ${item.compliancePeriodQuarter}`
+    )
+
+    expect(memberSet).toHaveLength(24)
+    expect(
+      memberSet.every((item) => item.schemeOrgId === '674a1b2c3d4e5f6789012345')
+    ).toBe(true)
+    expect(new Set(memberSet.map((item) => item.memberOrgId)).size).toBe(1)
+    expect(memberSet[0].memberOrgId).toMatch(/^[0-9a-f]{24}$/)
+    expect(new Set(memberSet.map((item) => item.memberName)).size).toBe(1)
+    expect(periods).toEqual(
+      memberYears.flatMap((year) =>
+        memberQuarters.map((quarter) => `${year} ${quarter}`)
+      )
+    )
+    expect(
+      memberSet.every(
+        (item) =>
+          item.memberBprn === `BPRN-EA-${item.compliancePeriodYear}-000123`
+      )
+    ).toBe(true)
+    expect(memberSet.every((item) => item.tonnageEntries.length === 2)).toBe(
+      true
+    )
+
+    const updatedMemberSet = parsedExample('batch-member')
+    expect(updatedMemberSet[0].memberOrgId).not.toBe(memberSet[0].memberOrgId)
+    expect(new Set(updatedMemberSet.map((item) => item.memberOrgId)).size).toBe(
+      1
+    )
 
     expect(parsedExample('batch-empty')).toEqual([])
 

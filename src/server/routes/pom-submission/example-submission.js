@@ -343,7 +343,8 @@ function getByMember() {
     memberOrgId: randomBytes(memberOrgIdBytes).toString('hex'),
     compliancePeriodYears: exampleYears,
     pageNumber: examplePageNumber,
-    pageSize: examplePageSize
+    pageSize: examplePageSize,
+    returnCurrentOnly: false
   }
 }
 

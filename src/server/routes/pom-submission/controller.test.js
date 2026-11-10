@@ -750,7 +750,8 @@ describe('#pomSubmissionController', () => {
         memberOrgId: '674a1b2c3d4e5f6789012711',
         compliancePeriodYears: [2026],
         pageNumber: 2,
-        pageSize: 10
+        pageSize: 10,
+        returnCurrentOnly: false
       })
     })
 
@@ -761,6 +762,7 @@ describe('#pomSubmissionController', () => {
     expect(url.searchParams.getAll('compliancePeriodYears')).toEqual(['2026'])
     expect(url.searchParams.get('pageNumber')).toBe('2')
     expect(url.searchParams.get('pageSize')).toBe('10')
+    expect(url.searchParams.get('returnCurrentOnly')).toBe('false')
   })
 
   test('Should show a problem when the API call fails', async () => {
@@ -1020,6 +1022,7 @@ describe('#buildExampleSubmission', () => {
     expect(body.compliancePeriodYears).toEqual([2025, 2026])
     expect(body.pageNumber).toBe(1)
     expect(body.pageSize).toBe(10)
+    expect(body.returnCurrentOnly).toBe(false)
     expect(body.schemeOrgId).toBeUndefined()
   })
 })

@@ -104,13 +104,36 @@ describe('#pomSubmissionController', () => {
     expect(result).toContain('formaction="/pom-submission#request-json"')
     expect(result).toContain('formaction="/pom-submission#create-single"')
     expect(result).toContain('formaction="/pom-submission#amend-single"')
+    expect(result).toContain('formaction="/pom-submission#batch-upsert"')
     expect(result).toContain('formaction="/pom-submission#get-by-id"')
     expect(result).toContain('formaction="/pom-submission#get-multiples"')
+    expect(result.indexOf('id="amend-single"')).toBeLessThan(
+      result.indexOf('id="batch-upsert"')
+    )
+    expect(result.indexOf('id="batch-upsert"')).toBeLessThan(
+      result.indexOf('id="get-by-id"')
+    )
     expect(result).toContain('Create single')
     expect(result).toContain('Amend single')
+    expect(result).toContain('Batch upsert')
     expect(result).toContain('Get by id')
     expect(result).toContain('Get multiples')
-    expect(result).toContain('<option disabled>....................</option>')
+    expect(
+      result.match(/<option disabled>....................<\/option>/g)
+    ).toHaveLength(3)
+    expect(result).toContain('Batch - two submissions')
+    expect(result).toContain('Batch - member full set')
+    expect(result).toContain('Batch - empty')
+    expect(result.indexOf('Batch - two submissions')).toBeLessThan(
+      result.indexOf('Batch - member full set')
+    )
+    expect(result.indexOf('Batch - member full set')).toBeLessThan(
+      result.indexOf('Batch - empty')
+    )
+    expect(result).toContain('Batch - null item')
+    expect(result).toContain('Batch - repeated key')
+    expect(result).toContain('Batch - invalid item')
+    expect(result).toContain('Batch - mixed errors')
     expect(result).toContain('Get by scheme id with years and quarters')
     expect(result).toContain('Get by member id with years and paginated')
     expect(result).not.toContain('Send request')
@@ -372,6 +395,88 @@ describe('#pomSubmissionController', () => {
         body: submissionJson
       }
     )
+  })
+
+  test('Should post a batch of submissions', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(
+          ['674a1b2c3d4e5f6789012348', '674a1b2c3d4e5f6789012349'],
+          { status: 200, statusText: 'OK' }
+        )
+      )
+    globalThis.fetch = fetchMock
+
+    const submissionJson = JSON.stringify([
+      { schemeOrgId: '674a1b2c3d4e5f6789012345' },
+      { schemeOrgId: '674a1b2c3d4e5f6789012345' }
+    ])
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'upsert-batch',
+      submissionJson
+    })
+
+    expect(statusCode).toBe(statusCodes.ok)
+    expect(result).toContain('200 OK')
+    expect(result).toContain('data-scroll-to="batch-upsert"')
+    expect(result).toContain('674a1b2c3d4e5f6789012348')
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL('/pom-submissions/upsert-batch', 'http://localhost:3001'),
+      {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          authorization: 'Bearer access-token',
+          'content-type': 'application/json'
+        },
+        body: submissionJson
+      }
+    )
+  })
+
+  test('Should ask for a JSON array before upserting a batch', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'upsert-batch',
+      submissionJson: '{"schemeOrgId":"674a1b2c3d4e5f6789012345"}'
+    })
+
+    expect(statusCode).toBe(statusCodes.badRequest)
+    expect(result).toContain('Enter a JSON array')
+    expect(result).toContain('data-scroll-to="batch-upsert"')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('Should reject a batch that is not JSON before calling the API', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'upsert-batch',
+      submissionJson: '{not json'
+    })
+
+    expect(statusCode).toBe(statusCodes.badRequest)
+    expect(result).toContain('Enter valid JSON')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  test('Should ask for JSON before upserting a batch', async () => {
+    const fetchMock = vi.fn()
+    globalThis.fetch = fetchMock
+
+    const { result, statusCode } = await signedInPost({
+      intent: 'upsert-batch'
+    })
+
+    expect(statusCode).toBe(statusCodes.badRequest)
+    expect(result).toContain('Enter the JSON to upsert')
+    expect(result).toContain('data-scroll-to="batch-upsert"')
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   test('Should ask for JSON before amending a submission', async () => {
@@ -645,7 +750,8 @@ describe('#pomSubmissionController', () => {
         memberOrgId: '674a1b2c3d4e5f6789012711',
         compliancePeriodYears: [2026],
         pageNumber: 2,
-        pageSize: 10
+        pageSize: 10,
+        returnCurrentOnly: false
       })
     })
 
@@ -656,6 +762,7 @@ describe('#pomSubmissionController', () => {
     expect(url.searchParams.getAll('compliancePeriodYears')).toEqual(['2026'])
     expect(url.searchParams.get('pageNumber')).toBe('2')
     expect(url.searchParams.get('pageSize')).toBe('10')
+    expect(url.searchParams.get('returnCurrentOnly')).toBe('false')
   })
 
   test('Should show a problem when the API call fails', async () => {
@@ -783,11 +890,115 @@ describe('#buildExampleSubmission', () => {
       'Invalid - BPRN year mismatch',
       'Invalid - unknown property',
       '....................',
+      'Batch - two submissions',
+      'Batch - member full set',
+      'Batch - empty',
+      'Batch - null item',
+      'Batch - repeated key',
+      'Batch - invalid item',
+      'Batch - mixed errors',
+      '....................',
       'Get by id',
       '....................',
       'Get by scheme id with years and quarters',
       'Get by member id with years and paginated'
     ])
+  })
+
+  test('Should build batch upsert requests', () => {
+    const two = parsedExample('batch-two')
+
+    expect(two).toHaveLength(2)
+    expect(two[0].schemeOrgId).toBe('674a1b2c3d4e5f6789012345')
+    expect(two[1].schemeOrgId).toBe(two[0].schemeOrgId)
+    expect(two[0].memberOrgId).not.toBe(two[1].memberOrgId)
+    expect(two[0].tonnageEntries).toHaveLength(2)
+    expect(two[1].tonnageEntries).toHaveLength(2)
+
+    const memberSet = parsedExample('batch-member')
+    const memberYears = [2021, 2022, 2023, 2024, 2025, 2026]
+    const memberQuarters = ['Quarter 1', 'Quarter 2', 'Quarter 3', 'Quarter 4']
+    const periods = memberSet.map(
+      (item) => `${item.compliancePeriodYear} ${item.compliancePeriodQuarter}`
+    )
+
+    expect(memberSet).toHaveLength(24)
+    expect(
+      memberSet.every((item) => item.schemeOrgId === '674a1b2c3d4e5f6789012345')
+    ).toBe(true)
+    expect(new Set(memberSet.map((item) => item.memberOrgId)).size).toBe(1)
+    expect(memberSet[0].memberOrgId).toMatch(/^[0-9a-f]{24}$/)
+    expect(new Set(memberSet.map((item) => item.memberName)).size).toBe(1)
+    expect(periods).toEqual(
+      memberYears.flatMap((year) =>
+        memberQuarters.map((quarter) => `${year} ${quarter}`)
+      )
+    )
+    expect(
+      memberSet.every(
+        (item) =>
+          item.memberBprn === `BPRN-EA-${item.compliancePeriodYear}-000123`
+      )
+    ).toBe(true)
+    expect(memberSet.every((item) => item.tonnageEntries.length === 2)).toBe(
+      true
+    )
+
+    const updatedMemberSet = parsedExample('batch-member')
+    expect(updatedMemberSet[0].memberOrgId).not.toBe(memberSet[0].memberOrgId)
+    expect(new Set(updatedMemberSet.map((item) => item.memberOrgId)).size).toBe(
+      1
+    )
+
+    expect(parsedExample('batch-empty')).toEqual([])
+
+    const nulled = parsedExample('batch-null')
+    expect(nulled).toHaveLength(2)
+    expect(nulled[0].memberOrgId).toMatch(/^[0-9a-f]{24}$/)
+    expect(nulled[1]).toBeNull()
+
+    const repeated = parsedExample('batch-repeated')
+    expect(repeated[0].memberOrgId).toBe(repeated[1].memberOrgId)
+    expect(repeated[0].compliancePeriodYear).toBe(
+      repeated[1].compliancePeriodYear
+    )
+    expect(repeated[0].compliancePeriodQuarter).toBe(
+      repeated[1].compliancePeriodQuarter
+    )
+    expect(repeated[0].tonnageEntries).not.toBe(repeated[1].tonnageEntries)
+
+    const invalid = parsedExample('batch-invalid')
+    expect(invalid[0].memberName).not.toBe('')
+    expect(invalid[1].memberName).toBe('')
+    expect(invalid[0].memberOrgId).not.toBe(invalid[1].memberOrgId)
+  })
+
+  test('Should build a batch that returns every error together', () => {
+    const batch = parsedExample('batch-mixed')
+    const valid = batch.slice(0, 3)
+    const memberOrgIds = batch
+      .filter((item) => item !== null)
+      .map((item) => item.memberOrgId)
+
+    expect(batch).toHaveLength(9)
+    expect(valid.every((item) => item.memberName !== '')).toBe(true)
+    expect(new Set(valid.map((item) => item.memberOrgId)).size).toBe(3)
+    expect(batch[3].memberOrgId).toBe(batch[2].memberOrgId)
+    expect(batch[3].schemeOrgId).toBe(batch[2].schemeOrgId)
+    expect(batch[3].compliancePeriodYear).toBe(batch[2].compliancePeriodYear)
+    expect(batch[3].compliancePeriodQuarter).toBe(
+      batch[2].compliancePeriodQuarter
+    )
+    expect(batch[3].memberName).toBe(batch[2].memberName)
+    expect(batch[4]).toBeNull()
+    expect(batch[5].memberName).toBe('')
+    expect(batch[6].tonnageEntries[0].tonnes).toBe('12.5')
+    expect(batch[7].tonnageEntries[0].classification).toEqual(
+      batch[7].tonnageEntries[1].classification
+    )
+    expect(batch[8].memberBprn).toBe('BPRN-EA-2025-000123')
+    expect(batch[8].compliancePeriodYear).toBe(2026)
+    expect(new Set(memberOrgIds).size).toBe(memberOrgIds.length - 1)
   })
 
   test('Should build a get by id request', () => {
@@ -811,6 +1022,7 @@ describe('#buildExampleSubmission', () => {
     expect(body.compliancePeriodYears).toEqual([2025, 2026])
     expect(body.pageNumber).toBe(1)
     expect(body.pageSize).toBe(10)
+    expect(body.returnCurrentOnly).toBe(false)
     expect(body.schemeOrgId).toBeUndefined()
   })
 })

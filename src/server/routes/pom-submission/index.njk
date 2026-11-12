@@ -14,7 +14,7 @@
 
   <div class="govuk-grid-row">
     <div class="govuk-grid-column-full">
-      <p class="govuk-body">This page sends the JSON below to the submissions API and shows the status code and body. Update json replaces the request with an example for the selected case. Create single posts one submission. Amend single patches the current submission for the scheme, member, year and quarter in the JSON. Get by id reads the submission whose id is in the JSON. Get multiples reads the list using the JSON fields as query parameters. Send the same create JSON twice to see the duplicate submission error.</p>
+      <p class="govuk-body">This page sends the JSON below to the submissions API and shows the status code and body. Update json replaces the request with an example for the selected case. Create single posts one submission. Amend single patches the current submission for the scheme, member, year and quarter in the JSON. Batch upsert posts a JSON array. Each item is created when no current submission exists for that scheme, member, year and quarter, and amended when one does. Get by id reads the submission whose id is in the JSON. Get multiples reads the list using the JSON fields as query parameters. Send the same create JSON twice to see the duplicate submission error.</p>
 
       {% if errorMessage %}
         <div class="govuk-error-summary" data-module="govuk-error-summary">
@@ -66,6 +66,7 @@
         <div class="govuk-button-group">
           <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="create-single" name="intent" value="post" formaction="/pom-submission#create-single">Create single</button>
           <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="amend-single" name="intent" value="patch" formaction="/pom-submission#amend-single">Amend single</button>
+          <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="batch-upsert" name="intent" value="upsert-batch" formaction="/pom-submission#batch-upsert">Batch upsert</button>
           <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="get-by-id" name="intent" value="get-by-id" formaction="/pom-submission#get-by-id">Get by id</button>
           <button class="govuk-button pom-submission-scroll-target" data-module="govuk-button" id="get-multiples" name="intent" value="get-multiples" formaction="/pom-submission#get-multiples">Get multiples</button>
         </div>

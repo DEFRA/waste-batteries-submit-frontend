@@ -15,6 +15,29 @@ const firstExampleYear = 2025
 const secondExampleYear = 2026
 const exampleYears = [firstExampleYear, secondExampleYear]
 const exampleQuarters = ['Quarter 1', 'Quarter 2']
+const memberFullSetStartYear = 2021
+
+function yearsThrough(startYear, endYear) {
+  const years = []
+
+  for (let year = startYear; year <= endYear; year += 1) {
+    years.push(year)
+  }
+
+  return years
+}
+
+const memberFullSetYears = yearsThrough(
+  memberFullSetStartYear,
+  secondExampleYear
+)
+const memberFullSetQuarters = [
+  'Quarter 1',
+  'Quarter 2',
+  'Quarter 3',
+  'Quarter 4'
+]
+const memberBprnReference = '000123'
 const examplePageNumber = 1
 const examplePageSize = 10
 const dottedLine = '....................'
@@ -34,6 +57,14 @@ export const exampleKinds = [
   { value: 'invalid-duplicate', text: 'Invalid - duplicate classification' },
   { value: 'invalid-bprn-year', text: 'Invalid - BPRN year mismatch' },
   { value: 'invalid-unknown', text: 'Invalid - unknown property' },
+  separator,
+  { value: 'batch-two', text: 'Batch - two submissions' },
+  { value: 'batch-member', text: 'Batch - member full set' },
+  { value: 'batch-empty', text: 'Batch - empty' },
+  { value: 'batch-null', text: 'Batch - null item' },
+  { value: 'batch-repeated', text: 'Batch - repeated key' },
+  { value: 'batch-invalid', text: 'Batch - invalid item' },
+  { value: 'batch-mixed', text: 'Batch - mixed errors' },
   separator,
   { value: 'get-by-id', text: 'Get by id' },
   separator,
@@ -73,6 +104,10 @@ function negativeTonnes() {
   return `-${tonnes()}`
 }
 
+function memberBprn(year) {
+  return `BPRN-EA-${year}-${memberBprnReference}`
+}
+
 function member() {
   const memberName = `${memberNames[randomInt(memberNames.length)]} ${randomInt(memberNameSuffixMin, memberNameSuffixMax)}`
 
@@ -80,9 +115,9 @@ function member() {
     schemeOrgId,
     memberOrgId: randomBytes(memberOrgIdBytes).toString('hex'),
     memberName,
-    memberBprn: 'BPRN-EA-2026-000123',
+    memberBprn: memberBprn(secondExampleYear),
     schemeMembershipRef: 'SCH-00417',
-    compliancePeriodYear: 2026,
+    compliancePeriodYear: secondExampleYear,
     compliancePeriodQuarter: 'Quarter 2',
     dataBasis: 'Actual'
   }
@@ -206,7 +241,7 @@ function duplicateClassification() {
 function bprnYearMismatch() {
   return {
     ...minimumSubmission(),
-    memberBprn: 'BPRN-EA-2025-000123'
+    memberBprn: memberBprn(firstExampleYear)
   }
 }
 
@@ -215,6 +250,78 @@ function unknownProperty() {
     ...minimumSubmission(),
     regulatorNote: 'ignore me'
   }
+}
+
+function batchTwo() {
+  return [fullSubmission(), fullSubmission()]
+}
+
+function batchMemberFullSet() {
+  const identity = member()
+
+  return memberFullSetYears.flatMap((year) =>
+    memberFullSetQuarters.map((quarter) => {
+      const [first, second] = twoIndexes()
+
+      return {
+        schemeOrgId: identity.schemeOrgId,
+        memberOrgId: identity.memberOrgId,
+        memberName: identity.memberName,
+        memberBprn: memberBprn(year),
+        schemeMembershipRef: identity.schemeMembershipRef,
+        compliancePeriodYear: year,
+        compliancePeriodQuarter: quarter,
+        dataBasis: identity.dataBasis,
+        tonnageEntries: [entry(first), entry(second)]
+      }
+    })
+  )
+}
+
+function batchEmpty() {
+  return []
+}
+
+function batchNullItem() {
+  return [minimumSubmission(), null]
+}
+
+function batchRepeated() {
+  const first = minimumSubmission()
+
+  return [
+    first,
+    {
+      ...first,
+      tonnageEntries: [entry(randomInt(chemistries.length))]
+    }
+  ]
+}
+
+function batchInvalidItem() {
+  return [minimumSubmission(), { ...minimumSubmission(), memberName: '' }]
+}
+
+function batchMixedErrors() {
+  const duplicated = minimumSubmission()
+
+  return [
+    minimumSubmission(),
+    minimumSubmission(),
+    duplicated,
+    {
+      ...duplicated,
+      tonnageEntries: [entry(randomInt(chemistries.length))]
+    },
+    null,
+    { ...minimumSubmission(), memberName: '' },
+    {
+      ...minimumSubmission(),
+      tonnageEntries: [entry(0, '12.5')]
+    },
+    duplicateClassification(),
+    bprnYearMismatch()
+  ]
 }
 
 function getById() {
@@ -236,7 +343,8 @@ function getByMember() {
     memberOrgId: randomBytes(memberOrgIdBytes).toString('hex'),
     compliancePeriodYears: exampleYears,
     pageNumber: examplePageNumber,
-    pageSize: examplePageSize
+    pageSize: examplePageSize,
+    returnCurrentOnly: false
   }
 }
 
@@ -251,6 +359,13 @@ const builders = {
   'invalid-duplicate': duplicateClassification,
   'invalid-bprn-year': bprnYearMismatch,
   'invalid-unknown': unknownProperty,
+  'batch-two': batchTwo,
+  'batch-member': batchMemberFullSet,
+  'batch-empty': batchEmpty,
+  'batch-null': batchNullItem,
+  'batch-repeated': batchRepeated,
+  'batch-invalid': batchInvalidItem,
+  'batch-mixed': batchMixedErrors,
   'get-by-id': getById,
   'get-by-scheme': getByScheme,
   'get-by-member': getByMember

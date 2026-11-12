@@ -44,6 +44,7 @@ export const pomSubmission = {
                   .valid(
                     'post',
                     'patch',
+                    'upsert-batch',
                     'update-json',
                     'get-by-id',
                     'get-multiples'

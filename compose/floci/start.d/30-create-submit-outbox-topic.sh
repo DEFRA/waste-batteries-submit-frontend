@@ -1,12 +1,12 @@
 #!/bin/sh
 set -eu
 
-# Local topic for waste-batteries-submit-backend when that API is debugged
-# against this compose. The frontend does not publish or read these messages.
-# The queue is only so a developer can see the envelope.
+# Same names as the CDP topic and the obligations queue. The frontend does not
+# publish or read these messages. The queue is subscribed here so a developer
+# can see the envelope when the submit API is debugged against this compose.
 
-topic_name="waste_batteries_submit_events"
-queue_name="waste_batteries_submit_events_demo"
+topic_name="waste_batteries_submit_pom_submission_events"
+queue_name="waste_batteries_obligations_pom_submission_evts_queue"
 
 topic_arn="$(aws sns create-topic --name "$topic_name" --query TopicArn --output text)"
 queue_url="$(aws sqs create-queue --queue-name "$queue_name" --query QueueUrl --output text)"
